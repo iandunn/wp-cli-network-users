@@ -1,0 +1,9 @@
+default:
+  formatters:
+    progress: ~
+  suites:
+    default:
+      contexts:
+        - WP_CLI\Tests\Context\FeatureContext
+  extensions:
+    Liuggio\Fastest\Behat\ListFeaturesExtension\Extension: ~

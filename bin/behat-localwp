@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# Wrapper for running behat tests in a LocalWP environment.
+# Automatically detects the MySQL socket so you don't have to set env vars manually.
+# Runs scenarios in parallel via liuggio/fastest.
+# Run from within the Local WP shell: composer test
+
+set -e
+
+SOCKET=$(mysql -u root -proot -e "SHOW VARIABLES LIKE 'socket'\G" 2>/dev/null | awk '/Value:/ { sub(/^.*Value: /, ""); print }')
+
+if [ -z "$SOCKET" ]; then
+	echo "Error: Could not detect MySQL socket. Are you running inside a LocalWP shell?"
+	exit 1
+fi
+
+export WP_CLI_TEST_DBHOST="localhost:${SOCKET}"
+export WP_CLI_TEST_DBROOTUSER="${WP_CLI_TEST_DBROOTUSER:-root}"
+export WP_CLI_TEST_DBROOTPASS="${WP_CLI_TEST_DBROOTPASS:-root}"
+
+# Grant the test user access to per-worker databases (wp_cli_test_0, wp_cli_test_1, ...).
+# install-package-tests only grants access to wp_cli_test; the wildcard pattern and
+# global CREATE are both needed for workers to CREATE DATABASE and then USE them.
+mysql -u root -proot -e "GRANT ALL PRIVILEGES ON \`wp_cli_test_%\`.* TO 'wp_cli_test'@'%'; GRANT CREATE ON *.* TO 'wp_cli_test'@'%';" 2>/dev/null || true
+
+# Find the full WP-CLI binary, skipping vendor/bin entries that lack plugin-install support.
+WP_CLI_BIN=""
+
+while IFS= read -r -d ':' dir; do
+	if [ -x "${dir}/wp" ] && [[ "${dir}" != */vendor/bin ]]; then
+		WP_CLI_BIN="${dir}/wp"
+		break
+	fi
+done <<< "${PATH}:"
+
+# The Local.app PHP binary has a 128MB memory_limit which wp core download's extraction
+# exceeds. The test framework builds an explicit subprocess env (so PHP_INI_SCAN_DIR
+# never reaches wp), but it prepends WP_CLI_BIN_DIR to PATH for every subprocess. A
+# wrapper script there lets us pass -d memory_limit=512M directly to the PHP invocation.
+if [ -n "$WP_CLI_BIN" ]; then
+	WP_WRAPPER_DIR=$(mktemp -d)
+	PHP_BIN="$(which php)"
+
+	cat > "${WP_WRAPPER_DIR}/wp" << EOF
+#!/bin/bash
+exec "${PHP_BIN}" -d memory_limit=512M "${WP_CLI_BIN}" "\$@"
+EOF
+
+	chmod +x "${WP_WRAPPER_DIR}/wp"
+	export WP_CLI_BIN_DIR="${WP_WRAPPER_DIR}"
+	trap "rm -rf '${WP_WRAPPER_DIR}'" EXIT
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BEHAT="${SCRIPT_DIR}/../vendor/bin/behat"
+FASTEST="${SCRIPT_DIR}/../vendor/bin/fastest"
+
+SERIAL=false
+if [[ "$*" == *"--serial"* ]]; then
+	SERIAL=true
+fi
+
+RERUN_FLAG=""
+if [[ "$*" == *"--rerun"* ]]; then
+	RERUN_FLAG="--rerun-failed"
+fi
+
+if [ "$SERIAL" = true ]; then
+	WP_CLI_TEST_DBNAME=wp_cli_test "$BEHAT"
+else
+	# Delete the install cache before workers start so @BeforeSuite's file_exists() check
+	# returns false and it skips remove_dir(). Without this, each of the 20 concurrent behat
+	# processes (one per scenario) races to rm -rf the same dir, causing ENOTEMPTY failures.
+	INSTALL_CACHE_DIR="$(php -r 'echo sys_get_temp_dir();')/wp-cli-test-core-install-cache"
+	rm -rf "$INSTALL_CACHE_DIR"
+
+	# Run one behat process per feature file (not per scenario) so @BeforeSuite fires twice
+	# instead of 20 times, and scenarios within each process share one install cache population.
+	"$BEHAT" --list-features | "$FASTEST" $RERUN_FLAG -p 2 "WP_CLI_TEST_DBNAME=wp_cli_test_{p} $BEHAT {}"
+fi

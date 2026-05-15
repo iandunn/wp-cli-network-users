@@ -1,0 +1,91 @@
+Feature: Delete users across the network
+
+  Background:
+    Given a WP multisite install
+    And I run `wp user create testuser1 testuser1@example.com --role=subscriber`
+    And I run `wp user create testuser2 testuser2@example.com --role=subscriber`
+
+  Scenario: Requires --users or --inactive
+    When I try `wp user delete-network --no-reassign --yes`
+    Then STDERR should contain:
+      """
+      Either --users=<users> or --inactive=<days> is required.
+      """
+    And the return code should be 1
+
+  Scenario: --users and --inactive are mutually exclusive
+    When I try `wp user delete-network --users=testuser1 --inactive=30 --no-reassign --yes`
+    Then STDERR should contain:
+      """
+      Use either --users=<users> or --inactive=<days>, not both.
+      """
+    And the return code should be 1
+
+  Scenario: Requires --reassign or --no-reassign
+    When I try `wp user delete-network --users=testuser1 --yes`
+    Then STDERR should contain:
+      """
+      Either --reassign=<user> or --no-reassign is required.
+      """
+    And the return code should be 1
+
+  Scenario: Unknown user errors
+    When I try `wp user delete-network --users=nobody@example.com --no-reassign --yes`
+    Then STDERR should contain:
+      """
+      Could not find user: nobody@example.com
+      """
+    And the return code should be 1
+
+  Scenario: Delete a specific user by username
+    When I run `wp user delete-network --users=testuser1 --no-reassign --yes`
+    Then STDOUT should contain:
+      """
+      Success:
+      """
+    And I try `wp user get testuser1`
+    Then STDERR should contain:
+      """
+      Invalid user
+      """
+
+  Scenario: Delete a specific user by email with reassign
+    When I run `wp user delete-network --users=testuser1@example.com --reassign=1 --yes`
+    Then STDOUT should contain:
+      """
+      Success:
+      """
+
+  Scenario: No inactive users found
+    When I try `wp user delete-network --inactive=1 --no-reassign --yes`
+    Then STDOUT should contain:
+      """
+      No users found inactive for
+      """
+    And the return code should be 0
+
+  Scenario: Delete inactive users
+    Given I run `wp user meta update testuser1 network_users_last_login 1`
+    And I run `wp user meta update testuser2 network_users_last_login 1`
+    When I try `wp user delete-network --inactive=1 --no-reassign --yes`
+    Then STDOUT should contain:
+      """
+      Success:
+      """
+    And the return code should be 0
+
+  Scenario: Delete users with no login timestamp
+    When I run `wp user delete-network --inactive=never --no-reassign --yes`
+    Then STDOUT should contain:
+      """
+      Success:
+      """
+
+  Scenario: Warning shown for users without timestamp when using --inactive=<days>
+    Given I run `wp user meta update testuser1 network_users_last_login 1`
+    When I try `wp user delete-network --inactive=1 --no-reassign --yes`
+    Then STDERR should contain:
+      """
+      no login timestamp and were skipped
+      """
+    And the return code should be 0

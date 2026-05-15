@@ -1,0 +1,45 @@
+{
+	"name"        : "iandunn/wp-cli-network-users",
+	"description" : "WP-CLI commands for managing users across a WordPress Multisite network",
+	"type"        : "wordpress-muplugin",
+	"homepage"    : "https://github.com/iandunn/wp-cli-network-users",
+	"license"     : "GPLv2",
+
+	"keywords" : [ "wp-cli", "wordpress", "multisite", "users" ],
+
+	"support" : {
+		"issues" : "https://github.com/iandunn/wp-cli-network-users/issues",
+		"source"  : "https://github.com/iandunn/wp-cli-network-users"
+	},
+
+	"authors" : [
+		{
+			"name"     : "Ian Dunn",
+			"email"    : "ian@iandunn.name",
+			"homepage" : "https://iandunn.name"
+		}
+	],
+
+	"autoload" : {
+		"files" : [ "wp-cli-network-users.php" ]
+	},
+
+	"require-dev" : {
+		"wp-cli/wp-cli-tests"   : "^4.2",
+		"wp-cli/entity-command" : "^2",
+		"liuggio/fastest"       : "^1.9"
+	},
+
+	"scripts" : {
+		"test"          : [ "Composer\\Config::disableProcessTimeout", "if [ -n \"$LOCALWP_PHP_PATH\" ]; then bin/behat-localwp; else run-behat-tests; fi" ],
+		"test-rerun"    : [ "Composer\\Config::disableProcessTimeout", "if [ -n \"$LOCALWP_PHP_PATH\" ]; then bin/behat-localwp --rerun; else run-behat-tests --rerun; fi" ],
+		"test-serial"   : [ "Composer\\Config::disableProcessTimeout", "if [ -n \"$LOCALWP_PHP_PATH\" ]; then bin/behat-localwp --serial; else run-behat-tests; fi" ],
+		"prepare-tests" : "install-package-tests"
+	},
+
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		}
+	}
+}
