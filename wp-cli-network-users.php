@@ -348,8 +348,9 @@ function delete( array $args, array $assoc_args ): void {
 }
 
 /**
- * Set a role for users across all sites in the network.
+ * Set a role for users on every site they already belong to.
  *
+ * Only affects sites the user is already a member of — does not add them to new sites.
  * Shows a table of matching users and prompts for confirmation before
  * making changes.
  *
