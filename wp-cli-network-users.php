@@ -87,10 +87,10 @@ function save_last_login( string $user_login, WP_User $user ): void {
  *
  * ## EXAMPLES
  *
- *     wp user delete-network --inactive=365 --reassign=1
- *     wp user delete-network --inactive=365 --reassign=1 --dry-run
+ *     wp user delete-network --inactive=365 --reassign=janedoe
+ *     wp user delete-network --inactive=365 --reassign=15 --dry-run
  *     wp user delete-network --inactive=never --no-reassign
- *     wp user delete-network --users=42,99,jane@example.com --reassign=1
+ *     wp user delete-network --users=42,99,jane@example.com --reassign=74
  *     wp user delete-network --users=42 --no-reassign
  *
  * @param array $args       Positional args.
@@ -102,6 +102,7 @@ function delete( array $args, array $assoc_args ): void {
 	$days           = $never ? 0 : (int) $inactive_input;
 	$users_input    = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'users', '' );
 	$reassign_input = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'reassign', '' );
+
 	// WP-CLI converts --no-reassign to assoc_args['reassign'] = false rather than setting assoc_args['no-reassign'].
 	$no_reassign = array_key_exists( 'reassign', $assoc_args ) && false === $assoc_args['reassign'];
 	$dry_run     = isset( $assoc_args['dry-run'] );
@@ -193,6 +194,7 @@ function delete( array $args, array $assoc_args ): void {
 	}
 
 	$table_rows = [];
+	$progress   = make_progress_bar( 'Searching users', count( $target_users ) );
 
 	foreach ( $target_users as $user ) {
 		$last_login   = get_user_meta( $user->ID, NETWORK_USERS_LAST_LOGIN_META_KEY, true );
@@ -204,7 +206,10 @@ function delete( array $args, array $assoc_args ): void {
 			'super_admin' => is_super_admin( $user->ID ) ? 'yes' : 'no',
 			'last_login'  => $last_login ? gmdate( 'Y-m-d', (int) $last_login ) : 'never',
 		];
+		$progress->tick();
 	}
+
+	$progress->finish();
 
 	WP_CLI::line( sprintf( "\nFound %d users to delete:\n", count( $table_rows ) ) );
 	format_items( 'table', $table_rows, array_keys( $table_rows[0] ) );
@@ -385,6 +390,7 @@ function set_role( array $args, array $assoc_args ): void {
 	}
 
 	$table_rows = [];
+	$progress   = make_progress_bar( 'Searching users', count( $target_users ) );
 
 	foreach ( $target_users as $user ) {
 		$last_login   = get_user_meta( $user->ID, NETWORK_USERS_LAST_LOGIN_META_KEY, true );
@@ -396,7 +402,10 @@ function set_role( array $args, array $assoc_args ): void {
 			'super_admin' => is_super_admin( $user->ID ) ? 'yes' : 'no',
 			'last_login'  => $last_login ? gmdate( 'Y-m-d', (int) $last_login ) : 'never',
 		];
+		$progress->tick();
 	}
+
+	$progress->finish();
 
 	WP_CLI::line( sprintf( "\nFound %d users to update:\n", count( $table_rows ) ) );
 	format_items( 'table', $table_rows, array_keys( $table_rows[0] ) );
