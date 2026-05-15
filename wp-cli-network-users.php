@@ -411,6 +411,12 @@ function set_role( array $args, array $assoc_args ): void {
 	format_items( 'table', $table_rows, array_keys( $table_rows[0] ) );
 	WP_CLI::line( "\nRole will be set to: {$role}\n" );
 
+	$super_admin_count = count( array_filter( $target_users, fn( $u ) => is_super_admin( $u->ID ) ) );
+
+	if ( $super_admin_count > 0 ) {
+		WP_CLI::warning( "{$super_admin_count} " . ( 1 === $super_admin_count ? 'user is' : 'users are' ) . " a super admin — their network-wide privileges won't be affected by this role change.\n" );
+	}
+
 	if ( $dry_run ) {
 		WP_CLI::line( "\nDry run — no changes made." );
 		return;
