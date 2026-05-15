@@ -1,7 +1,7 @@
 {
 	"name"        : "iandunn/wp-cli-network-users",
 	"description" : "WP-CLI commands for managing users across a WordPress Multisite network",
-	"type"        : "wordpress-muplugin",
+	"type"        : "wordpress-plugin",
 	"homepage"    : "https://github.com/iandunn/wp-cli-network-users",
 	"license"     : "GPL-2.0-only",
 

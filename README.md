@@ -3,13 +3,16 @@ WP-CLI Network Users
 
 WP-CLI commands for managing users across a WordPress Multisite network.
 
+Provides `wp user delete-network` and `wp user set-role-network`. Details are below.
+
+
 ## Installing
 
 ```shell
 composer require iandunn/wp-cli-network-users
 ```
 
-Ensure your `composer.json` has `composer/installers` and the mu-plugins path configured:
+Ensure your `composer.json` has `composer/installers` and the plugins path configured:
 
 ```json
 {
@@ -18,11 +21,18 @@ Ensure your `composer.json` has `composer/installers` and the mu-plugins path co
   },
   "extra": {
     "installer-paths": {
-      "wp-content/mu-plugins/{$name}/": ["type:wordpress-muplugin"]
+      "wp-content/plugins/{$name}/": ["type:wordpress-plugin"]
     }
   }
 }
 ```
+
+Then activate the plugin:
+
+```shell
+wp plugin activate wp-cli-network-users --network
+```
+
 
 ## Commands
 
@@ -43,6 +53,7 @@ wp user delete-network --users=42,jane,bob@example.com --reassign=1
 wp user delete-network --inactive=365 --reassign=1
 wp user delete-network --inactive=never --no-reassign
 ```
+
 
 **Flags:**
 
@@ -75,6 +86,7 @@ wp user set-role-network --inactive=365
 wp user set-role-network --inactive=never
 ```
 
+
 **Flags:**
 
 - `--users=<users>` — Comma-separated list of user IDs, usernames, or emails. Mutually exclusive with `--inactive`.
@@ -85,11 +97,13 @@ wp user set-role-network --inactive=never
 
 Before updating, shows the same confirmation table as `delete-network`.
 
+
 ## Notes
 
 - Last login timestamps are stored in the `network_users_last_login` usermeta key as Unix timestamps.
 - Users who existed before this plugin was deployed have no `network_users_last_login` meta. Use `--inactive=never` to target them specifically.
-- This plugin is intended to be installed as a mu-plugin for the login tracking to run on every request.
+- Activate the plugin network-wide (not just on individual sites) so the login tracking runs on every request.
+
 
 ## Contributing / Setup
 

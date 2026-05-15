@@ -1,6 +1,6 @@
 # wp-cli-network-users
 
-WP-CLI mu-plugin for managing users across a WordPress Multisite network. Two commands: `wp user delete-network` and `wp user set-role-network`. Also hooks `wp_login` to record last-login timestamps via user meta key `network_users_last_login`.
+WP-CLI plugin for managing users across a WordPress Multisite network. Two commands: `wp user delete-network` and `wp user set-role-network`. Also hooks `wp_login` to record last-login timestamps via user meta key `network_users_last_login`.
 
 **Architecture**: Pure PHP, single-file plugin. No frontend, no JS, no build process. All plugin logic is in `wp-cli-network-users.php`. Behat step definitions come from the `wp-cli/wp-cli-tests` package (`vendor/wp-cli/wp-cli-tests/`).
 
