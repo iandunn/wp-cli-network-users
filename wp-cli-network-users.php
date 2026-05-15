@@ -79,6 +79,14 @@ function save_last_login( string $user_login, WP_User $user ): void {
  * : Permanently delete all content belonging to the removed users.
  *   Use either --no-reassign or --reassign, not both.
  *
+ * [--scope=<scope>]
+ * : Controls how much is deleted. 'sites' removes users from all sites but keeps their network
+ *   account in wp_users. 'network' also permanently deletes the account.
+ *
+ * [--include-super-admins]
+ * : When using --scope=network, revoke super admin status before deleting.
+ *   Without this flag, super admins are skipped. Requires --scope=network.
+ *
  * [--dry-run]
  * : Show what would be changed without making any changes.
  *
@@ -87,11 +95,12 @@ function save_last_login( string $user_login, WP_User $user ): void {
  *
  * ## EXAMPLES
  *
- *     wp user delete-network --inactive=365 --reassign=janedoe
- *     wp user delete-network --inactive=365 --reassign=15 --dry-run
- *     wp user delete-network --inactive=never --no-reassign
- *     wp user delete-network --users=42,99,jane@example.com --reassign=74
- *     wp user delete-network --users=42 --no-reassign
+ *     wp user delete-network --inactive=365 --reassign=janedoe --scope=sites
+ *     wp user delete-network --inactive=365 --reassign=15 --scope=network --dry-run
+ *     wp user delete-network --inactive=never --no-reassign --scope=network
+ *     wp user delete-network --inactive=never --no-reassign --scope=network --include-super-admins
+ *     wp user delete-network --users=42,99,jane@example.com --reassign=74 --scope=sites
+ *     wp user delete-network --users=42 --no-reassign --scope=network
  *
  * @param array $args       Positional args.
  * @param array $assoc_args Associative args.
@@ -104,8 +113,10 @@ function delete( array $args, array $assoc_args ): void {
 	$reassign_input = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'reassign', '' );
 
 	// WP-CLI converts --no-reassign to assoc_args['reassign'] = false rather than setting assoc_args['no-reassign'].
-	$no_reassign = array_key_exists( 'reassign', $assoc_args ) && false === $assoc_args['reassign'];
-	$dry_run     = isset( $assoc_args['dry-run'] );
+	$no_reassign          = array_key_exists( 'reassign', $assoc_args ) && false === $assoc_args['reassign'];
+	$dry_run              = isset( $assoc_args['dry-run'] );
+	$scope                = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'scope', '' );
+	$include_super_admins = isset( $assoc_args['include-super-admins'] );
 
 	if ( ! $users_input && ! $days && ! $never ) {
 		WP_CLI::error( 'Either --users=<users> or --inactive=<days> is required.' );
@@ -121,6 +132,18 @@ function delete( array $args, array $assoc_args ): void {
 
 	if ( $reassign_input && $no_reassign ) {
 		WP_CLI::error( 'Use either --reassign=<user> or --no-reassign, not both.' );
+	}
+
+	if ( ! $scope ) {
+		WP_CLI::error( 'Either --scope=sites or --scope=network is required.' );
+	}
+
+	if ( ! in_array( $scope, [ 'sites', 'network' ], true ) ) {
+		WP_CLI::error( "Invalid --scope value: {$scope}. Use 'sites' or 'network'." );
+	}
+
+	if ( $include_super_admins && 'network' !== $scope ) {
+		WP_CLI::error( '--include-super-admins requires --scope=network.' );
 	}
 
 	$reassign_user = null;
@@ -220,6 +243,18 @@ function delete( array $args, array $assoc_args ): void {
 		WP_CLI::line( "\nContent will be permanently deleted.\n" );
 	}
 
+	if ( 'network' === $scope ) {
+		WP_CLI::line( "Network accounts will be permanently deleted.\n" );
+	} else {
+		WP_CLI::line( "Network accounts will be kept — users will only be removed from individual sites.\n" );
+	}
+
+	$super_admin_count = count( array_filter( $target_users, fn( $u ) => is_super_admin( $u->ID ) ) );
+
+	if ( 'network' === $scope && ! $include_super_admins && $super_admin_count > 0 ) {
+		WP_CLI::warning( "{$super_admin_count} " . ( 1 === $super_admin_count ? 'user is' : 'users are' ) . " a super admin and will be skipped. Add --include-super-admins to include them.\n" );
+	}
+
 	if ( $dry_run ) {
 		WP_CLI::line( "\nDry run — no changes made." );
 		return;
@@ -229,10 +264,21 @@ function delete( array $args, array $assoc_args ): void {
 
 	global $wpdb;
 
-	$sites    = get_sites( [ 'number' => 10000 ] );
-	$progress = make_progress_bar( 'Deleting users', count( $target_users ) );
+	$sites              = get_sites( [ 'number' => 10000 ] );
+	$progress           = make_progress_bar( 'Deleting users', count( $target_users ) );
+	$skipped_super_admins = 0;
 
 	foreach ( $target_users as $user ) {
+		if ( 'network' === $scope && is_super_admin( $user->ID ) ) {
+			if ( ! $include_super_admins ) {
+				$skipped_super_admins++;
+				$progress->tick();
+				continue;
+			}
+
+			revoke_super_admin( $user->ID );
+		}
+
 		foreach ( $sites as $site ) {
 			switch_to_blog( (int) $site->blog_id );
 
@@ -253,23 +299,47 @@ function delete( array $args, array $assoc_args ): void {
 			restore_current_blog();
 		}
 
-		wpmu_delete_user( $user->ID );
+		if ( 'network' === $scope ) {
+			wpmu_delete_user( $user->ID );
+		}
+
 		$progress->tick();
 	}
 
 	$progress->finish();
 
-	if ( $reassign_user ) {
-		WP_CLI::success(
-			sprintf(
-				'Deleted %d users. Content reassigned to [%d] %s.',
-				count( $target_users ),
-				$reassign_user->ID,
-				$reassign_user->user_login
-			)
-		);
+	if ( $skipped_super_admins > 0 ) {
+		WP_CLI::warning( "{$skipped_super_admins} super " . ( 1 === $skipped_super_admins ? 'admin was' : 'admins were' ) . ' skipped. Use --include-super-admins to include them.' );
+	}
+
+	$processed = count( $target_users ) - $skipped_super_admins;
+
+	if ( 'network' === $scope ) {
+		if ( $reassign_user ) {
+			WP_CLI::success(
+				sprintf(
+					'Deleted %d users from the network. Content reassigned to [%d] %s.',
+					$processed,
+					$reassign_user->ID,
+					$reassign_user->user_login
+				)
+			);
+		} else {
+			WP_CLI::success( sprintf( 'Deleted %d users from the network.', $processed ) );
+		}
 	} else {
-		WP_CLI::success( sprintf( 'Deleted %d users and their content.', count( $target_users ) ) );
+		if ( $reassign_user ) {
+			WP_CLI::success(
+				sprintf(
+					'Removed %d users from all sites. Content reassigned to [%d] %s. Network accounts were not deleted.',
+					$processed,
+					$reassign_user->ID,
+					$reassign_user->user_login
+				)
+			);
+		} else {
+			WP_CLI::success( sprintf( 'Removed %d users from all sites. Network accounts were not deleted.', $processed ) );
+		}
 	}
 
 	if ( $days ) {
