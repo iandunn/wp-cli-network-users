@@ -264,14 +264,14 @@ function delete( array $args, array $assoc_args ): void {
 
 	global $wpdb;
 
-	$sites              = get_sites( [ 'number' => 10000 ] );
-	$progress           = make_progress_bar( 'Deleting users', count( $target_users ) );
+	$sites                = get_sites( [ 'number' => 10000 ] );
+	$progress             = make_progress_bar( 'Deleting users', count( $target_users ) );
 	$skipped_super_admins = 0;
 
 	foreach ( $target_users as $user ) {
 		if ( 'network' === $scope && is_super_admin( $user->ID ) ) {
 			if ( ! $include_super_admins ) {
-				$skipped_super_admins++;
+				++$skipped_super_admins;
 				$progress->tick();
 				continue;
 			}
@@ -327,8 +327,7 @@ function delete( array $args, array $assoc_args ): void {
 		} else {
 			WP_CLI::success( sprintf( 'Deleted %d users from the network.', $processed ) );
 		}
-	} else {
-		if ( $reassign_user ) {
+	} elseif ( $reassign_user ) {
 			WP_CLI::success(
 				sprintf(
 					'Removed %d users from all sites. Content reassigned to [%d] %s. Network accounts were not deleted.',
@@ -337,9 +336,8 @@ function delete( array $args, array $assoc_args ): void {
 					$reassign_user->user_login
 				)
 			);
-		} else {
-			WP_CLI::success( sprintf( 'Removed %d users from all sites. Network accounts were not deleted.', $processed ) );
-		}
+	} else {
+		WP_CLI::success( sprintf( 'Removed %d users from all sites. Network accounts were not deleted.', $processed ) );
 	}
 
 	if ( $days ) {
