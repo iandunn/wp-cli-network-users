@@ -68,11 +68,12 @@ Feature: Set role for users across the network
     And the return code should be 0
 
   Scenario: Update users with no login timestamp
-    When I run `wp user set-role-network --inactive=never --yes`
+    When I try `wp user set-role-network --inactive=never --yes`
     Then STDOUT should contain:
       """
       Success:
       """
+    And the return code should be 0
 
   Scenario: Warning shown for users without timestamp when using --inactive=<days>
     Given I run `wp user meta update testuser1 network_users_last_login 1`
@@ -80,5 +81,14 @@ Feature: Set role for users across the network
     Then STDERR should contain:
       """
       no login timestamp and were skipped
+      """
+    And the return code should be 0
+
+  Scenario: Warn when target users include a super admin
+    Given I run `wp super-admin add testuser1`
+    When I try `wp user set-role-network --users=testuser1 --yes`
+    Then STDERR should contain:
+      """
+      a super admin
       """
     And the return code should be 0
