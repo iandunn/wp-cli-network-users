@@ -43,33 +43,31 @@ Warning: 5 users are a super admin and will be skipped. Add --include-super-admi
 Dry run — no changes made.
 ```
 
+
 ## Simpler Alternatives
 
 For simple cases, the built-in WP-CLI commands and a little plubming is enough:
 
 ```bash
 # Re-assign content on all sites before deleting a user network-wide
-wp site list --field=url | xargs -I {} wp --url={} user delete username --reassign=userid
+wp site list --field=url | xargs -I {} wp --url={} user delete fanty.oram@example.org --reassign=205
 wp user delete 26 --network
 
 # Set a role on every site. This will add the user to every site in the network.
-wp site list --field=url --network | xargs -I {} wp --url={} user set-role jane subscriber
+wp site list --field=url --network | xargs -I {} wp --url={} user set-role jubal.early subscriber
 ```
+
 
 ## Use this if you want:
 
 - **Inactivity targeting** — bulk-target users who haven't logged in within N days, or ever since the plugin was installed (`--inactive=<days>` / `--inactive=never`)
-- **Large networks** - this is much faster than the `wp site list...` loop, because it only acts on sites the user is already on, and doesn't re-load WP for every site
-- **Target assigned sites** — only updates the user's role on sites they're already a member of; the `wp site list... set-role` loop adds them to every site in the network
-
+- **Speed on large networks** - this is much faster than the `wp site list...` loop, because it only acts on sites the user is already on, and doesn't re-load WP for every site
+- **Targeting assigned sites** — only sets the user's role on sites they're already a member of; the `wp site list... set-role` loop adds them to every site in the network
 - **Multiple users at once** — comma-separated IDs, usernames, or emails in a single command
 - **Dry-run preview** — see who would be affected before committing (`--dry-run`)
-
 - **Convenience** - you don't have to remember or look up how to pipe site URLs to `xargs`
-
 - **Using usernames or emails** when reassigning content, instead of having to look up IDs
 - **Super admin protection** on delete — super admins are skipped by default; opt in with `--include-super-admins`
-
 
 
 ## Installing
