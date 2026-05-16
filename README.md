@@ -3,7 +3,73 @@ WP-CLI Network Users
 
 WP-CLI commands for managing users across a WordPress Multisite network.
 
-Provides `wp user delete-network` and `wp user set-role-network`. Details are below.
+Provides `wp user delete-network` and `wp user set-role-network`. Both can be applied to users who haven't been active in the past `n` days.
+
+```sh
+> wp user delete-network --inactive=180 --reassign=jane.doe --scope=network --dry-run
+
+Found 183 users to delete:
+
++------+------------------------------+------------------------------------+-------+-------------+------------+
+| ID   | username                     | email                              | sites | super_admin | last_login |
++------+------------------------------+------------------------------------+-------+-------------+------------+
+| 18   | james.porter                 | james.porter@example.org           | 37    | yes         | 2024-03-11 |
+| 203  | emily.hartwell               | emily.hartwell@example.org         | 8     | no          | never      |
+| 2991 | nathan.griffith              | nathan.griffith@example.org        | 3     | yes         | 2022-08-24 |
+| 74   | derek.lawson                 | derek.lawson@example.org           | 43    | yes         | 2025-11-07 |
+| 3418 | warren.blackwood             | warren.blackwood@example.org       | 9     | yes         | 2023-06-15 |
+| 561  | ben.foster                   | ben.foster@example.org             | 29    | no          | never      |
+| 1132 | brett.hughes                 | brett.hughes@example.org           | 4     | no          | 2024-09-30 |
+| 4201 | blake.morgan                 | blake.morgan@example.org           | 1     | no          | 2021-12-04 |
+...
+| 889  | claire.weston                | claire.weston@example.org          | 2     | no          | 2025-04-18 |
+| 2347 | carl.barrett                 | carl.barrett@example.org           | 11    | no          | 2022-01-29 |
+| 5076 | carol.holland                | carol.holland@example.org          | 14    | no          | 2023-10-03 |
+| 445  | derek.hammond                | derek.hammond@example.org          | 33    | no          | 2024-07-22 |
+| 1693 | jeffrey.walker               | jeffrey.walker@example.org         | 6     | no          | never      |
+| 728  | john.morrow                  | john.morrow@example.org            | 41    | no          | 2025-02-14 |
+| 3852 | melissa.baker                | melissa.baker@example.org          | 28    | no          | 2021-07-09 |
+| 6164 | roger.palmer@example.org     | roger.palmer@example.org           | 7     | no          | 2023-03-27 |
+| 99   | mark.calloway                | mark.calloway@example.org          | 27    | no          | never      |
+| 4088 | steven.whitfield@example.org | steven.whitfield@example.org       | 3     | no          | 2026-01-05 |
++------+------------------------------+------------------------------------+-------+-------------+------------+
+
+Content will be reassigned to: [91] jane.doe (jane.doe@example.org)
+
+Network accounts will be permanently deleted.
+
+Warning: 4 users are a super admin and will be skipped. Add --include-super-admins to include them.
+
+Dry run — no changes made.
+```
+
+## Simpler Alternatives
+
+For simple cases, the built-in WP-CLI commands and a little plumubing is enough:
+
+```shell
+# Re-assign content on all sites before deleting a user network-wide
+wp site list --field=url | xargs -I {} wp --url={} user delete username --reassign=userid
+wp user delete 26 --network
+
+# Set a role on every site. This will add the user to every site in the network.
+wp site list --field=url --network | xargs -I {} wp --url={} user set-role jane subscriber
+```
+
+## Use this if you want:
+
+- **Inactivity targeting** — bulk-target users who haven't logged in within N days, or ever since the plugin was installed (`--inactive=<days>` / `--inactive=never`)
+- **Large networks** - this is much faster than the `wp site list...` loop, because it only acts on sites the user is already on, and doesn't re-load WP for every site
+- **Target assigned sites** — only updates the user's role on sites they're already a member of; the `wp site list... set-role` loop adds them to every site in the network
+
+- **Multiple users at once** — comma-separated IDs, usernames, or emails in a single command
+- **Dry-run preview** — see who would be affected before committing (`--dry-run`)
+
+- **Convenience** - you don't have to remember or look up how to pipe site URLs to `xargs`
+
+- **Using usernames or emails** when reassigning content, instead of having to look up IDs
+- **Super admin protection** on delete — super admins are skipped by default; opt in with `--include-super-admins`
+
 
 
 ## Installing
@@ -46,8 +112,10 @@ wp user delete-network --users=42 --no-reassign
 wp user delete-network --users=jane --no-reassign
 wp user delete-network --users=jane@example.com --no-reassign
 
-# Mix formats and reassign content
+# Mix formats and reassign content (--reassign accepts ID, username, or email)
 wp user delete-network --users=42,jane,bob@example.com --reassign=1
+wp user delete-network --users=42,jane,bob@example.com --reassign=janedoe
+wp user delete-network --users=42,jane,bob@example.com --reassign=jane@example.com
 
 # Target by inactivity
 wp user delete-network --inactive=365 --reassign=1
@@ -60,7 +128,7 @@ wp user delete-network --inactive=never --no-reassign
 - `--users=<users>` — Comma-separated list of user IDs, usernames, or emails. Mutually exclusive with `--inactive`.
 - `--inactive=<days>` — Target users who have not logged in within this many days. Only matches users with a recorded timestamp. Mutually exclusive with `--users`.
 - `--inactive=never` — Target users with no recorded login timestamp. Mutually exclusive with `--users`.
-- `--reassign=<user>` — User to reassign all content to. Mutually exclusive with `--no-reassign`.
+- `--reassign=<user>` — User ID, username, or email to reassign all content to. Mutually exclusive with `--no-reassign`.
 - `--no-reassign` — Permanently delete all content belonging to removed users. Mutually exclusive with `--reassign`.
 - `--yes` — Skip confirmation prompt.
 
@@ -100,9 +168,9 @@ Before updating, shows the same confirmation table as `delete-network`.
 
 ## Notes
 
-- Last login timestamps are stored in the `network_users_last_login` usermeta key as Unix timestamps.
-- Users who existed before this plugin was deployed have no `network_users_last_login` meta. Use `--inactive=never` to target them specifically.
-- Activate the plugin network-wide (not just on individual sites) so the login tracking runs on every request.
+- Inactivity is determined by the last date they logged in.
+- Users who last logged in before this plugin was deployed won't have  inactivity data. Use `--inactive=never` to target them specifically, but keep in mind that they may have logged in recently if you just installed the plugin.
+- This is only intended for Multisite networks, and hasn't been tested in single sites.
 
 
 ## Contributing / Setup
