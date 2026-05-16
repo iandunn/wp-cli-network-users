@@ -5,7 +5,7 @@ WP-CLI commands for managing users across a WordPress Multisite network.
 
 Provides `wp user delete-network` and `wp user set-role-network`. Both can be applied to users who haven't been active in the past `n` days.
 
-```sh
+```bash
 > wp user delete-network --inactive=180 --reassign=jane.doe --scope=network --dry-run
 
 Found 183 users to delete:
@@ -45,9 +45,9 @@ Dry run — no changes made.
 
 ## Simpler Alternatives
 
-For simple cases, the built-in WP-CLI commands and a little plumubing is enough:
+For simple cases, the built-in WP-CLI commands and a little plubming is enough:
 
-```shell
+```bash
 # Re-assign content on all sites before deleting a user network-wide
 wp site list --field=url | xargs -I {} wp --url={} user delete username --reassign=userid
 wp user delete 26 --network
@@ -74,7 +74,7 @@ wp site list --field=url --network | xargs -I {} wp --url={} user set-role jane 
 
 ## Installing
 
-```shell
+```bash
 composer require iandunn/wp-cli-network-users
 ```
 
@@ -95,7 +95,7 @@ Ensure your `composer.json` has `composer/installers` and the plugins path confi
 
 Then activate the plugin:
 
-```shell
+```bash
 wp plugin activate wp-cli-network-users --network
 ```
 
@@ -106,7 +106,7 @@ wp plugin activate wp-cli-network-users --network
 
 Delete users network-wide, with optional content reassignment.
 
-```shell
+```bash
 # Target by user ID, username, or email
 wp user delete-network --users=42 --no-reassign
 wp user delete-network --users=jane --no-reassign
@@ -140,7 +140,7 @@ Before deleting, shows a confirmation table with ID, username, email, site count
 
 Set a role for users on every site they belong to across the network.
 
-```shell
+```bash
 # Target by user ID, username, or email
 wp user set-role-network --users=42
 wp user set-role-network --users=jane
