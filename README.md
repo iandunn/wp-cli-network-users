@@ -105,15 +105,9 @@ wp plugin activate wp-cli-network-users --network
 Delete users network-wide, with optional content reassignment.
 
 ```bash
-# Target by user ID, username, or email
-wp user delete-network --users=42 --no-reassign
-wp user delete-network --users=jane --no-reassign
-wp user delete-network --users=jane@example.com --no-reassign
-
-# Mix formats and reassign content (--reassign accepts ID, username, or email)
-wp user delete-network --users=42,jane,bob@example.com --reassign=1
-wp user delete-network --users=42,jane,bob@example.com --reassign=janedoe
-wp user delete-network --users=42,jane,bob@example.com --reassign=jane@example.com
+# Target and re-assign by user ID, username, or email
+wp user delete-network --users=42,inara.serra,derrial.book@example.org --no-reassign
+wp user delete-network --users=42,jane,bob@example.com --reassign=hoban.washburne
 
 # Target by inactivity
 wp user delete-network --inactive=365 --reassign=1
@@ -136,20 +130,16 @@ Before deleting, shows a confirmation table with ID, username, email, site count
 
 ### `wp user set-role-network`
 
-Set a role for users on every site they belong to across the network.
+Set a role for users on every site they belong to across the network. Leave off `--role` to default to `subscriber`.
 
 ```bash
 # Target by user ID, username, or email
-wp user set-role-network --users=42
-wp user set-role-network --users=jane
-wp user set-role-network --users=jane@example.com
-
-# Mix formats with an explicit role
-wp user set-role-network --users=42,jane,bob@example.com --role=editor
+wp user set-role-network --users=42,atherton.wing@example.org,saffron.reynolds # set to `subscriber` by default
+wp user set-role-network --users=simon.tam,kaylee.frye --role=administrator
 
 # Target by inactivity
 wp user set-role-network --inactive=365
-wp user set-role-network --inactive=never
+wp user set-role-network --inactive=never --role=subscriber
 ```
 
 
