@@ -46,7 +46,7 @@ Dry run — no changes made.
 
 ## Simpler Alternatives
 
-For simple cases, the built-in WP-CLI commands and a little plubming is enough:
+For simple cases, the built-in WP-CLI commands and a little plumbing is enough:
 
 ```bash
 # Re-assign content on all sites before deleting a user network-wide
