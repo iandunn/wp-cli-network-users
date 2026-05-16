@@ -79,7 +79,7 @@ function save_last_login( string $user_login, WP_User $user ): void {
  * : Permanently delete all content belonging to the removed users.
  *   Use either --no-reassign or --reassign, not both.
  *
- * [--scope=<scope>]
+ * --scope=<scope>
  * : Controls how much is deleted. 'sites' removes users from all sites but keeps their network
  *   account in wp_users. 'network' also permanently deletes the account.
  *

@@ -106,12 +106,12 @@ Delete users network-wide, with optional content reassignment.
 
 ```bash
 # Target and re-assign by user ID, username, or email
-wp user delete-network --users=42,inara.serra,derrial.book@example.org --no-reassign
-wp user delete-network --users=42,jane,bob@example.com --reassign=hoban.washburne
+wp user delete-network --users=42,inara.serra,derrial.book@example.org --no-reassign --scope=sites
+wp user delete-network --users=42,jane,bob@example.com --reassign=hoban.washburne --scope=network
 
 # Target by inactivity
-wp user delete-network --inactive=365 --reassign=1
-wp user delete-network --inactive=never --no-reassign
+wp user delete-network --inactive=365 --reassign=zoe.washburne --scope=sites
+wp user delete-network --inactive=never --no-reassign --scope=network
 ```
 
 
@@ -122,6 +122,9 @@ wp user delete-network --inactive=never --no-reassign
 - `--inactive=never` — Target users with no recorded login timestamp. Mutually exclusive with `--users`.
 - `--reassign=<user>` — User ID, username, or email to reassign all content to. Mutually exclusive with `--no-reassign`.
 - `--no-reassign` — Permanently delete all content belonging to removed users. Mutually exclusive with `--reassign`.
+- `--scope=<scope>` — `sites` removes users from all site memberships but keeps their network account. `network` also permanently deletes the account. Required.
+- `--include-super-admins` — When using `--scope=network`, revoke super admin status before deleting. Without this flag, super admins are skipped.
+- `--dry-run` — Show what would be changed without making any changes.
 - `--yes` — Skip confirmation prompt.
 
 Before deleting, shows a confirmation table with ID, username, email, site count, super admin status, and last login date.
@@ -149,6 +152,7 @@ wp user set-role-network --inactive=never --role=subscriber
 - `--inactive=<days>` — Target users who have not logged in within this many days. Only matches users with a recorded timestamp. Mutually exclusive with `--users`.
 - `--inactive=never` — Target users with no recorded login timestamp. Mutually exclusive with `--users`.
 - `--role=<role>` — Role to assign. Defaults to `subscriber`.
+- `--dry-run` — Show what would be changed without making any changes.
 - `--yes` — Skip confirmation prompt.
 
 Before updating, shows the same confirmation table as `delete-network`.
