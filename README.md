@@ -13,32 +13,32 @@ Found 183 users to delete:
 +------+------------------------------+------------------------------------+-------+-------------+------------+
 | ID   | username                     | email                              | sites | super_admin | last_login |
 +------+------------------------------+------------------------------------+-------+-------------+------------+
-| 18   | james.porter                 | james.porter@example.org           | 37    | yes         | 2024-03-11 |
-| 203  | emily.hartwell               | emily.hartwell@example.org         | 8     | no          | never      |
-| 2991 | nathan.griffith              | nathan.griffith@example.org        | 3     | yes         | 2022-08-24 |
-| 74   | derek.lawson                 | derek.lawson@example.org           | 43    | yes         | 2025-11-07 |
-| 3418 | warren.blackwood             | warren.blackwood@example.org       | 9     | yes         | 2023-06-15 |
-| 561  | ben.foster                   | ben.foster@example.org             | 29    | no          | never      |
-| 1132 | brett.hughes                 | brett.hughes@example.org           | 4     | no          | 2024-09-30 |
-| 4201 | blake.morgan                 | blake.morgan@example.org           | 1     | no          | 2021-12-04 |
-...
-| 889  | claire.weston                | claire.weston@example.org          | 2     | no          | 2025-04-18 |
-| 2347 | carl.barrett                 | carl.barrett@example.org           | 11    | no          | 2022-01-29 |
-| 5076 | carol.holland                | carol.holland@example.org          | 14    | no          | 2023-10-03 |
-| 445  | derek.hammond                | derek.hammond@example.org          | 33    | no          | 2024-07-22 |
-| 1693 | jeffrey.walker               | jeffrey.walker@example.org         | 6     | no          | never      |
-| 728  | john.morrow                  | john.morrow@example.org            | 41    | no          | 2025-02-14 |
-| 3852 | melissa.baker                | melissa.baker@example.org          | 28    | no          | 2021-07-09 |
-| 6164 | roger.palmer@example.org     | roger.palmer@example.org           | 7     | no          | 2023-03-27 |
-| 99   | mark.calloway                | mark.calloway@example.org          | 27    | no          | never      |
-| 4088 | steven.whitfield@example.org | steven.whitfield@example.org       | 3     | no          | 2026-01-05 |
+| 10   | hoban.washburne              | hoban.washburne@example.org        | 31    | yes         | 2022-08-24 |
+| 2847 | zoe.washburne                | zoe.washburne@example.org          | 1     | yes         | never      |
+| 5931 | inara.serra                  | inara.serra@example.org            | 43    | no          | 2025-11-07 |
+| 614  | malcolm.reynolds             | malcolm.reynolds@example.org       | 3     | yes         | 2024-03-11 |
+| 1278 | jayne.cobb                   | jayne.cobb@example.org             | 2     | no          | 2023-06-15 |
+| 88   | kaylee.frye                  | kaylee.frye@example.org            | 4     | yes         | never      |
+| 89   | simon.tam                    | simon.tam@example.org              | 28    | no          | 2024-09-30 |
+| 90   | river.tam                    | river.tam@example.org              | 38    | no          | 2021-12-04 |
+| 2053 | derrial.book                 | derrial.book@example.org           | 26    | yes         | 2025-04-18 |
+| ...  | ...                          | ...                                | ...   | ...         | ...        |
+| 5187 | adelai.niska                 | adelai.niska@example.org           | 3     | no          | 2022-01-29 |
+| 341  | jubal.early                  | jubal.early@example.org            | 19    | no          | 2023-10-03 |
+| 1864 | tracey.smith                 | tracey.smith@example.org           | 1     | no          | 2024-07-22 |
+| 6102 | atherton.wing                | atherton.wing@example.org          | 2     | no          | never      |
+| 927  | yolanda.haymer               | yolanda.haymer@example.org         | 41    | no          | 2025-02-14 |
+| 555  | saffron.reynolds             | saffron.reynolds@example.org       | 45    | no          | 2021-07-09 |
+| 248  | fanty.oram@example.org       | fanty.oram@example.org             | 35    | no          | 2023-03-27 |
+| 4843 | laurence.dobson              | laurence.dobson@example.org        | 1     | no          | never      |
+| 1531 | mingo.oram@example.org       | mingo.oram@example.org             | 30    | no          | 2026-01-05 |
 +------+------------------------------+------------------------------------+-------+-------------+------------+
 
 Content will be reassigned to: [91] jane.doe (jane.doe@example.org)
 
 Network accounts will be permanently deleted.
 
-Warning: 4 users are a super admin and will be skipped. Add --include-super-admins to include them.
+Warning: 5 users are a super admin and will be skipped. Add --include-super-admins to include them.
 
 Dry run — no changes made.
 ```
