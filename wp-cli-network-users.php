@@ -220,12 +220,22 @@ function delete( array $args, array $assoc_args ): void {
 	$progress   = make_progress_bar( 'Searching users', count( $target_users ) );
 
 	foreach ( $target_users as $user ) {
-		$last_login   = get_user_meta( $user->ID, NETWORK_USERS_LAST_LOGIN_META_KEY, true );
+		$last_login = get_user_meta( $user->ID, NETWORK_USERS_LAST_LOGIN_META_KEY, true );
+		$blogs      = get_blogs_of_user( $user->ID );
+		$post_count = 0;
+
+		foreach ( $blogs as $blog ) {
+			switch_to_blog( (int) $blog->userblog_id );
+			$post_count += (int) count_user_posts( $user->ID );
+			restore_current_blog();
+		}
+
 		$table_rows[] = [
 			'ID'          => $user->ID,
 			'username'    => $user->user_login,
 			'email'       => $user->user_email,
-			'sites'       => count( get_blogs_of_user( $user->ID ) ),
+			'sites'       => count( $blogs ),
+			'posts'       => $post_count,
 			'super_admin' => is_super_admin( $user->ID ) ? 'yes' : 'no',
 			'last_login'  => $last_login ? gmdate( 'Y-m-d', (int) $last_login ) : 'never',
 		];
@@ -462,12 +472,22 @@ function set_role( array $args, array $assoc_args ): void {
 	$progress   = make_progress_bar( 'Searching users', count( $target_users ) );
 
 	foreach ( $target_users as $user ) {
-		$last_login   = get_user_meta( $user->ID, NETWORK_USERS_LAST_LOGIN_META_KEY, true );
+		$last_login = get_user_meta( $user->ID, NETWORK_USERS_LAST_LOGIN_META_KEY, true );
+		$blogs      = get_blogs_of_user( $user->ID );
+		$post_count = 0;
+
+		foreach ( $blogs as $blog ) {
+			switch_to_blog( (int) $blog->userblog_id );
+			$post_count += (int) count_user_posts( $user->ID );
+			restore_current_blog();
+		}
+
 		$table_rows[] = [
 			'ID'          => $user->ID,
 			'username'    => $user->user_login,
 			'email'       => $user->user_email,
-			'sites'       => count( get_blogs_of_user( $user->ID ) ),
+			'sites'       => count( $blogs ),
+			'posts'       => $post_count,
 			'super_admin' => is_super_admin( $user->ID ) ? 'yes' : 'no',
 			'last_login'  => $last_login ? gmdate( 'Y-m-d', (int) $last_login ) : 'never',
 		];

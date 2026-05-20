@@ -161,7 +161,7 @@ Before updating, shows the same confirmation table as `delete-network`.
 ## Notes
 
 - Inactivity is determined by the last date they logged in.
-- Users who last logged in before this plugin was deployed won't have  inactivity data. Use `--inactive=never` to target them specifically, but keep in mind that they may have logged in recently if you just installed the plugin.
+- ⚠️ Users who last logged in before this plugin was deployed won't have inactivity data. Use `--inactive=never` to target them specifically, but keep in mind that they may have logged in recently if you just installed the plugin.
 - This is only intended for Multisite networks, and hasn't been tested in single sites.
 
 
