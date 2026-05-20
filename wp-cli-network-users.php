@@ -290,22 +290,23 @@ function delete( array $args, array $assoc_args ): void {
 		}
 
 		foreach ( $sites as $site ) {
-			switch_to_blog( (int) $site->blog_id );
-
-			if ( is_user_member_of_blog( $user->ID, (int) $site->blog_id ) ) {
-				if ( $reassign_user ) {
-					$wpdb->update(
-						$wpdb->posts,
-						[ 'post_author' => $reassign_user->ID ],
-						[ 'post_author' => $user->ID ]
-					);
-				} else {
-					$wpdb->delete( $wpdb->posts, [ 'post_author' => $user->ID ] );
-				}
-
-				remove_user_from_blog( $user->ID, (int) $site->blog_id );
+			if ( ! is_user_member_of_blog( $user->ID, (int) $site->blog_id ) ) {
+				continue;
 			}
 
+			switch_to_blog( (int) $site->blog_id );
+
+			if ( $reassign_user ) {
+				$wpdb->update(
+					$wpdb->posts,
+					[ 'post_author' => $reassign_user->ID ],
+					[ 'post_author' => $user->ID ]
+				);
+			} else {
+				$wpdb->delete( $wpdb->posts, [ 'post_author' => $user->ID ] );
+			}
+
+			remove_user_from_blog( $user->ID, (int) $site->blog_id );
 			restore_current_blog();
 		}
 
