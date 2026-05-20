@@ -21,7 +21,16 @@ export WP_CLI_TEST_DBROOTPASS="${WP_CLI_TEST_DBROOTPASS:-root}"
 # Grant the test user access to per-worker databases (wp_cli_test_0, wp_cli_test_1, ...).
 # install-package-tests only grants access to wp_cli_test; the wildcard pattern and
 # global CREATE are both needed for workers to CREATE DATABASE and then USE them.
-mysql -u root -proot -e "GRANT ALL PRIVILEGES ON \`wp_cli_test_%\`.* TO 'wp_cli_test'@'%'; GRANT CREATE ON *.* TO 'wp_cli_test'@'%';" 2>/dev/null || true
+# MySQL socket connections authenticate as 'localhost', which MySQL treats as a different
+# user from '%', so both must be granted. MySQL 8 requires CREATE USER before GRANT.
+TEST_USER_PASS="${WP_CLI_TEST_DBPASS:-password1}"
+mysql -u root -proot -e "
+	GRANT ALL PRIVILEGES ON \`wp_cli_test_%\`.* TO 'wp_cli_test'@'%';
+	GRANT CREATE ON *.* TO 'wp_cli_test'@'%';
+	CREATE USER IF NOT EXISTS 'wp_cli_test'@'localhost' IDENTIFIED WITH mysql_native_password BY '${TEST_USER_PASS}';
+	GRANT ALL PRIVILEGES ON \`wp_cli_test_%\`.* TO 'wp_cli_test'@'localhost';
+	GRANT CREATE ON *.* TO 'wp_cli_test'@'localhost';
+" 2>/dev/null || true
 
 # Find the full WP-CLI binary, skipping vendor/bin entries that lack plugin-install support.
 WP_CLI_BIN=""
@@ -65,6 +74,11 @@ if [[ "$*" == *"--rerun"* ]]; then
 	RERUN_FLAG="--rerun-failed"
 fi
 
+DEBUG=false
+if [[ "$*" == *"--debug"* ]]; then
+	DEBUG=true
+fi
+
 # If the download cache exists but is missing wp-config-sample.php it's partially corrupt —
 # WP-CLI would try to re-download but bootstrap from the stale files first, causing a fatal
 # error (e.g. missing InputValidator class). Delete it so the next run gets a clean extraction.
@@ -84,5 +98,18 @@ else
 
 	# Run one behat process per feature file (not per scenario) so @BeforeSuite fires twice
 	# instead of 20 times, and scenarios within each process share one install cache population.
-	"$BEHAT" --list-features | "$FASTEST" $RERUN_FLAG -p 2 "WP_CLI_TEST_DBNAME=wp_cli_test_{p} $BEHAT {}"
+	if [ "$DEBUG" = true ]; then
+		LOG_DIR=$(mktemp -d)
+		set +e
+		"$BEHAT" --list-features | "$FASTEST" $RERUN_FLAG -vv -p 2 "WP_CLI_TEST_DBNAME=wp_cli_test_{p} $BEHAT {} > $LOG_DIR/worker-{p}.log 2>&1"
+		FASTEST_EXIT=$?
+		set -e
+		echo ""
+		echo "=== Worker logs ==="
+		cat "$LOG_DIR"/worker-*.log 2>/dev/null || echo "(no logs)"
+		rm -rf "$LOG_DIR"
+		exit $FASTEST_EXIT
+	else
+		"$BEHAT" --list-features | "$FASTEST" $RERUN_FLAG -vv -p 2 "WP_CLI_TEST_DBNAME=wp_cli_test_{p} $BEHAT {}"
+	fi
 fi

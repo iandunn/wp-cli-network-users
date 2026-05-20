@@ -32,9 +32,9 @@
 	},
 
 	"scripts" : {
-		"test"          : [ "Composer\\Config::disableProcessTimeout", "if [ -n \"$LOCALWP_PHP_PATH\" ]; then bin/behat-localwp; else run-behat-tests; fi" ],
-		"test-rerun"    : [ "Composer\\Config::disableProcessTimeout", "if [ -n \"$LOCALWP_PHP_PATH\" ]; then bin/behat-localwp --rerun; else run-behat-tests --rerun; fi" ],
-		"test-serial"   : [ "Composer\\Config::disableProcessTimeout", "if [ -n \"$LOCALWP_PHP_PATH\" ]; then bin/behat-localwp --serial; else run-behat-tests; fi" ],
+		"test"          : [ "Composer\\Config::disableProcessTimeout", "bin/test" ],
+		"test-rerun"    : [ "Composer\\Config::disableProcessTimeout", "bin/test --rerun" ],
+		"test-serial"   : [ "Composer\\Config::disableProcessTimeout", "bin/test --serial" ],
 		"prepare-tests" : "install-package-tests"
 	},
 

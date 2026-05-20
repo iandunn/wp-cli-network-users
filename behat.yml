@@ -4,6 +4,6 @@ default:
   suites:
     default:
       contexts:
-        - WP_CLI\Tests\Context\FeatureContext
+        - FeatureContext
   extensions:
     Liuggio\Fastest\Behat\ListFeaturesExtension\Extension: ~
