@@ -6,7 +6,7 @@ Feature: Delete users across the network
     And I run `wp user create testuser2 testuser2@example.com --role=subscriber`
 
   Scenario: Requires --users or --inactive
-    When I try `wp user delete-network --no-reassign --yes`
+    When I try `wp user delete-network --no-reassign --scope=network --yes`
     Then STDERR should contain:
       """
       Either --users=<users> or --inactive=<days> is required.
@@ -14,7 +14,7 @@ Feature: Delete users across the network
     And the return code should be 1
 
   Scenario: --users and --inactive are mutually exclusive
-    When I try `wp user delete-network --users=testuser1 --inactive=30 --no-reassign --yes`
+    When I try `wp user delete-network --users=testuser1 --inactive=30 --no-reassign --scope=network --yes`
     Then STDERR should contain:
       """
       Use either --users=<users> or --inactive=<days>, not both.
@@ -22,7 +22,7 @@ Feature: Delete users across the network
     And the return code should be 1
 
   Scenario: Requires --reassign or --no-reassign
-    When I try `wp user delete-network --users=testuser1 --yes`
+    When I try `wp user delete-network --users=testuser1 --scope=network --yes`
     Then STDERR should contain:
       """
       Either --reassign=<user> or --no-reassign is required.
@@ -33,7 +33,7 @@ Feature: Delete users across the network
     When I try `wp user delete-network --users=testuser1 --no-reassign --yes`
     Then STDERR should contain:
       """
-      Either --scope=sites or --scope=network is required.
+      missing --scope parameter
       """
     And the return code should be 1
 
