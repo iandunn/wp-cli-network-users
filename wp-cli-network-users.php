@@ -226,7 +226,8 @@ function delete( array $args, array $assoc_args ): void {
 
 		foreach ( $blogs as $blog ) {
 			switch_to_blog( (int) $blog->userblog_id );
-			$post_count += (int) count_user_posts( $user->ID );
+			// Excludes built-in internal types (revision, nav_menu_item, etc.) that inflate the count without representing real content.
+		$post_count += (int) count_user_posts( $user->ID, array_merge( get_post_types( [ '_builtin' => false ] ), [ 'post', 'page', 'attachment' ] ) );
 			restore_current_blog();
 		}
 
@@ -481,7 +482,8 @@ function set_role( array $args, array $assoc_args ): void {
 
 		foreach ( $blogs as $blog ) {
 			switch_to_blog( (int) $blog->userblog_id );
-			$post_count += (int) count_user_posts( $user->ID );
+			// Excludes built-in internal types (revision, nav_menu_item, etc.) that inflate the count without representing real content.
+		$post_count += (int) count_user_posts( $user->ID, array_merge( get_post_types( [ '_builtin' => false ] ), [ 'post', 'page', 'attachment' ] ) );
 			restore_current_blog();
 		}
 
