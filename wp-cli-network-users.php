@@ -298,7 +298,15 @@ function delete( array $args, array $assoc_args ): void {
 				remove_user_from_blog( $user->ID, (int) $site->blog_id, $reassign_user->ID );
 			} else {
 				switch_to_blog( (int) $site->blog_id );
-				$wpdb->delete( $wpdb->posts, [ 'post_author' => $user->ID ] );
+
+				$post_ids = $wpdb->get_col(
+					$wpdb->prepare( "SELECT ID FROM $wpdb->posts WHERE post_author = %d", $user->ID )
+				);
+
+				foreach ( $post_ids as $post_id ) {
+					wp_delete_post( (int) $post_id, true );
+				}
+
 				restore_current_blog();
 				remove_user_from_blog( $user->ID, (int) $site->blog_id );
 			}
