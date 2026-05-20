@@ -65,6 +65,14 @@ if [[ "$*" == *"--rerun"* ]]; then
 	RERUN_FLAG="--rerun-failed"
 fi
 
+# If the download cache exists but is missing wp-config-sample.php it's partially corrupt —
+# WP-CLI would try to re-download but bootstrap from the stale files first, causing a fatal
+# error (e.g. missing InputValidator class). Delete it so the next run gets a clean extraction.
+DOWNLOAD_CACHE_DIR="$(php -r 'echo sys_get_temp_dir();')/wp-cli-test-core-download-cache"
+if [ -d "$DOWNLOAD_CACHE_DIR" ] && [ ! -f "$DOWNLOAD_CACHE_DIR/wp-config-sample.php" ]; then
+	rm -rf "$DOWNLOAD_CACHE_DIR"
+fi
+
 if [ "$SERIAL" = true ]; then
 	WP_CLI_TEST_DBNAME=wp_cli_test "$BEHAT"
 else
