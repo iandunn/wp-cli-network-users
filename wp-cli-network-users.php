@@ -294,20 +294,14 @@ function delete( array $args, array $assoc_args ): void {
 				continue;
 			}
 
-			switch_to_blog( (int) $site->blog_id );
-
 			if ( $reassign_user ) {
-				$wpdb->update(
-					$wpdb->posts,
-					[ 'post_author' => $reassign_user->ID ],
-					[ 'post_author' => $user->ID ]
-				);
+				remove_user_from_blog( $user->ID, (int) $site->blog_id, $reassign_user->ID );
 			} else {
+				switch_to_blog( (int) $site->blog_id );
 				$wpdb->delete( $wpdb->posts, [ 'post_author' => $user->ID ] );
+				restore_current_blog();
+				remove_user_from_blog( $user->ID, (int) $site->blog_id );
 			}
-
-			remove_user_from_blog( $user->ID, (int) $site->blog_id );
-			restore_current_blog();
 		}
 
 		if ( 'network' === $scope ) {
