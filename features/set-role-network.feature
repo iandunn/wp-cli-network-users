@@ -80,7 +80,7 @@ Feature: Set role for users across the network
     When I try `wp user set-role-network --inactive=1 --yes`
     Then STDERR should contain:
       """
-      no login timestamp and were skipped
+      no login timestamp and was skipped
       """
     And the return code should be 0
 

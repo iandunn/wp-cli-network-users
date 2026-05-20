@@ -262,7 +262,7 @@ function delete( array $args, array $assoc_args ): void {
 	$super_admin_count = count( array_filter( $target_users, fn( $u ) => is_super_admin( $u->ID ) ) );
 
 	if ( 'network' === $scope && ! $include_super_admins && $super_admin_count > 0 ) {
-		WP_CLI::warning( "{$super_admin_count} " . ( 1 === $super_admin_count ? 'user is' : 'users are' ) . " a super admin and will be skipped. Add --include-super-admins to include them.\n" );
+		WP_CLI::warning( "{$super_admin_count} " . ( 1 === $super_admin_count ? 'user is a super admin' : 'users are super admins' ) . " and will be skipped. Add --include-super-admins to include them.\n" );
 	}
 
 	if ( $dry_run ) {
@@ -338,14 +338,14 @@ function delete( array $args, array $assoc_args ): void {
 			WP_CLI::success( sprintf( 'Deleted %d users from the network.', $processed ) );
 		}
 	} elseif ( $reassign_user ) {
-			WP_CLI::success(
-				sprintf(
-					'Removed %d users from all sites. Content reassigned to [%d] %s. Network accounts were not deleted.',
-					$processed,
-					$reassign_user->ID,
-					$reassign_user->user_login
-				)
-			);
+		WP_CLI::success(
+			sprintf(
+				'Removed %d users from all sites. Content reassigned to [%d] %s. Network accounts were not deleted.',
+				$processed,
+				$reassign_user->ID,
+				$reassign_user->user_login
+			)
+		);
 	} else {
 		WP_CLI::success( sprintf( 'Removed %d users from all sites. Network accounts were not deleted.', $processed ) );
 	}
@@ -573,6 +573,6 @@ function warn_users_without_timestamp(): void {
 	);
 
 	if ( $count > 0 ) {
-		WP_CLI::warning( "{$count} " . ( 1 === $count ? 'user has' : 'users have' ) . ' no login timestamp and were skipped. Run with --inactive=never to target them.' );
+		WP_CLI::warning( "{$count} " . ( 1 === $count ? 'user has' : 'users have' ) . ' no login timestamp and ' . ( 1 === $count ? 'was' : 'were' ) . ' skipped. Run with --inactive=never to target them.' );
 	}
 }
