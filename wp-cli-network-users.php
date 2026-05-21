@@ -107,25 +107,19 @@ function save_last_login( string $user_login, WP_User $user ): void {
  * @param array $assoc_args Associative args.
  */
 function delete( array $args, array $assoc_args ): void {
-	$inactive_input = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'inactive', '' );
-	$never          = 'never' === $inactive_input;
-	$days           = $never ? 0 : (int) $inactive_input;
-	$users_input    = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'users', '' );
+	[
+		'never'       => $never,
+		'days'        => $days,
+		'users_input' => $users_input,
+		'dry_run'     => $dry_run,
+	] = parse_target_args( $assoc_args );
+
 	$reassign_input = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'reassign', '' );
 
 	// WP-CLI converts --no-reassign to assoc_args['reassign'] = false rather than setting assoc_args['no-reassign'].
 	$no_reassign          = array_key_exists( 'reassign', $assoc_args ) && false === $assoc_args['reassign'];
-	$dry_run              = isset( $assoc_args['dry-run'] );
 	$scope                = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'scope', '' );
 	$include_super_admins = isset( $assoc_args['include-super-admins'] );
-
-	if ( ! $users_input && ! $days && ! $never ) {
-		WP_CLI::error( 'Either --users=<users> or --inactive=<days> is required.' );
-	}
-
-	if ( $users_input && ( $days || $never ) ) {
-		WP_CLI::error( 'Use either --users=<users> or --inactive=<days>, not both.' );
-	}
 
 	if ( ! $reassign_input && ! $no_reassign ) {
 		WP_CLI::error( 'Either --reassign=<user> or --no-reassign is required.' );
@@ -159,42 +153,16 @@ function delete( array $args, array $assoc_args ): void {
 
 	$exclude = $reassign_user ? [ $reassign_user->ID ] : [];
 
-	if ( $users_input ) {
-		$target_users = [];
-
-		foreach ( array_map( 'trim', explode( ',', $users_input ) ) as $u ) {
-			$resolved = resolve_user( $u );
-
-			if ( ! $resolved ) {
-				WP_CLI::error( "Could not find user: {$u}" );
-			}
-
-			if ( $reassign_user && $resolved->ID === $reassign_user->ID ) {
-				WP_CLI::error( "Cannot delete the reassign target: {$u}" );
-			}
-
-			$target_users[] = $resolved;
-		}
-	} elseif ( $never ) {
-		$target_users = get_users_without_activity( $exclude );
-	} else {
-		$cutoff = time() - ( $days * DAY_IN_SECONDS );
-		[ 'users' => $target_users, 'timestamps' => $effective_logins ] = get_inactive_users( $cutoff, $exclude );
-	}
+	[ 'users' => $target_users, 'timestamps' => $effective_logins ] = resolve_target_users( $users_input, $never, $days, $exclude, $reassign_user );
 
 	if ( empty( $target_users ) ) {
-		WP_CLI::success( $never ? 'No users found without a login timestamp.' : ( $days ? "No users found inactive for {$days}+ days." : 'No matching users found.' ) );
-
-		if ( $days ) {
-			warn_users_without_timestamp();
-		}
-
+		handle_no_target_users( $never, $days );
 		return;
 	}
 
 	$table_rows = build_user_table(
 		$target_users,
-		$effective_logins ?? get_effective_last_login( array_column( $target_users, 'ID' ) )
+		$effective_logins ?: get_effective_last_login( array_column( $target_users, 'ID' ) )
 	);
 
 	WP_CLI::line( sprintf( "\nFound %d users to delete:\n", count( $table_rows ) ) );
@@ -353,57 +321,29 @@ function delete( array $args, array $assoc_args ): void {
  * @param array $assoc_args Associative args.
  */
 function set_role( array $args, array $assoc_args ): void {
-	$inactive_input = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'inactive', '' );
-	$never          = 'never' === $inactive_input;
-	$days           = $never ? 0 : (int) $inactive_input;
-	$users_input    = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'users', '' );
-	$role           = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'role', 'subscriber' );
-	$dry_run        = isset( $assoc_args['dry-run'] );
+	[
+		'never'       => $never,
+		'days'        => $days,
+		'users_input' => $users_input,
+		'dry_run'     => $dry_run,
+	] = parse_target_args( $assoc_args );
 
-	if ( ! $users_input && ! $days && ! $never ) {
-		WP_CLI::error( 'Either --users=<users> or --inactive=<days> is required.' );
-	}
-
-	if ( $users_input && ( $days || $never ) ) {
-		WP_CLI::error( 'Use either --users=<users> or --inactive=<days>, not both.' );
-	}
+	$role = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'role', 'subscriber' );
 
 	if ( ! get_role( $role ) ) {
 		WP_CLI::error( "Invalid role: {$role}" );
 	}
 
-	if ( $users_input ) {
-		$target_users = [];
-
-		foreach ( array_map( 'trim', explode( ',', $users_input ) ) as $u ) {
-			$resolved = resolve_user( $u );
-
-			if ( ! $resolved ) {
-				WP_CLI::error( "Could not find user: {$u}" );
-			}
-
-			$target_users[] = $resolved;
-		}
-	} elseif ( $never ) {
-		$target_users = get_users_without_activity();
-	} else {
-		$cutoff = time() - ( $days * DAY_IN_SECONDS );
-		[ 'users' => $target_users, 'timestamps' => $effective_logins ] = get_inactive_users( $cutoff );
-	}
+	[ 'users' => $target_users, 'timestamps' => $effective_logins ] = resolve_target_users( $users_input, $never, $days );
 
 	if ( empty( $target_users ) ) {
-		WP_CLI::success( $never ? 'No users found without a login timestamp.' : ( $days ? "No users found inactive for {$days}+ days." : 'No matching users found.' ) );
-
-		if ( $days ) {
-			warn_users_without_timestamp();
-		}
-
+		handle_no_target_users( $never, $days );
 		return;
 	}
 
 	$table_rows = build_user_table(
 		$target_users,
-		$effective_logins ?? get_effective_last_login( array_column( $target_users, 'ID' ) )
+		$effective_logins ?: get_effective_last_login( array_column( $target_users, 'ID' ) )
 	);
 
 	WP_CLI::line( sprintf( "\nFound %d users to update:\n", count( $table_rows ) ) );
@@ -441,6 +381,90 @@ function set_role( array $args, array $assoc_args ): void {
 	$progress->finish();
 
 	WP_CLI::success( sprintf( 'Updated %d users to role "%s".', count( $target_users ), $role ) );
+
+	if ( $days ) {
+		warn_users_without_timestamp();
+	}
+}
+
+/**
+ * Parse and validate the shared --users/--inactive/--dry-run arguments.
+ *
+ * @param array $assoc_args
+ * @return array{ never: bool, days: int, users_input: string, dry_run: bool }
+ */
+function parse_target_args( array $assoc_args ): array {
+	$inactive_input = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'inactive', '' );
+	$never          = 'never' === $inactive_input;
+	$days           = $never ? 0 : (int) $inactive_input;
+	$users_input    = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'users', '' );
+	$dry_run        = isset( $assoc_args['dry-run'] );
+
+	if ( ! $users_input && ! $days && ! $never ) {
+		WP_CLI::error( 'Either --users=<users> or --inactive=<days> is required.' );
+	}
+
+	if ( $users_input && ( $days || $never ) ) {
+		WP_CLI::error( 'Use either --users=<users> or --inactive=<days>, not both.' );
+	}
+
+	return compact( 'never', 'days', 'users_input', 'dry_run' );
+}
+
+/**
+ * Resolve --users/--inactive/--inactive=never into target users and any precomputed timestamps.
+ *
+ * @param string       $users_input   Raw --users flag value.
+ * @param bool         $never         True when --inactive=never.
+ * @param int          $days          Days threshold from --inactive=<days>; 0 otherwise.
+ * @param int[]        $exclude       User IDs to exclude.
+ * @param WP_User|null $reassign_user When set, errors if a --users target matches this user.
+ * @return array{ users: WP_User[], timestamps: array<int,int> }
+ */
+function resolve_target_users( string $users_input, bool $never, int $days, array $exclude = [], ?WP_User $reassign_user = null ): array {
+	if ( $users_input ) {
+		$target_users = [];
+
+		foreach ( array_map( 'trim', explode( ',', $users_input ) ) as $u ) {
+			$resolved = resolve_user( $u );
+
+			if ( ! $resolved ) {
+				WP_CLI::error( "Could not find user: {$u}" );
+			}
+
+			if ( $reassign_user && $resolved->ID === $reassign_user->ID ) {
+				WP_CLI::error( "Cannot delete the reassign target: {$u}" );
+			}
+
+			$target_users[] = $resolved;
+		}
+
+		return [
+			'users'      => $target_users,
+			'timestamps' => [],
+		];
+	}
+
+	if ( $never ) {
+		return [
+			'users'      => get_users_without_activity( $exclude ),
+			'timestamps' => [],
+		];
+	}
+
+	$cutoff = time() - ( $days * DAY_IN_SECONDS );
+
+	return get_inactive_users( $cutoff, $exclude );
+}
+
+/**
+ * Output the "no users found" success message and optional timestamp warning, then let the caller return.
+ *
+ * @param bool $never True when --inactive=never.
+ * @param int  $days  Days threshold from --inactive=<days>; 0 otherwise.
+ */
+function handle_no_target_users( bool $never, int $days ): void {
+	WP_CLI::success( $never ? 'No users found without a login timestamp.' : ( $days ? "No users found inactive for {$days}+ days." : 'No matching users found.' ) );
 
 	if ( $days ) {
 		warn_users_without_timestamp();
