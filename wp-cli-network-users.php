@@ -192,34 +192,10 @@ function delete( array $args, array $assoc_args ): void {
 		return;
 	}
 
-	$table_rows = [];
-	$progress   = make_progress_bar( 'Searching users', count( $target_users ) );
-
-	foreach ( $target_users as $user ) {
-		$last_login = get_user_meta( $user->ID, NETWORK_USERS_LAST_LOGIN_META_KEY, true );
-		$blogs      = get_blogs_of_user( $user->ID );
-		$post_count = 0;
-
-		foreach ( $blogs as $blog ) {
-			switch_to_blog( (int) $blog->userblog_id );
-			// Excludes built-in internal types (revision, nav_menu_item, etc.) that inflate the count without representing real content.
-		$post_count += (int) count_user_posts( $user->ID, array_merge( get_post_types( [ '_builtin' => false ] ), [ 'post', 'page', 'attachment' ] ) );
-			restore_current_blog();
-		}
-
-		$table_rows[] = [
-			'ID'          => $user->ID,
-			'username'    => $user->user_login,
-			'email'       => $user->user_email,
-			'sites'       => count( $blogs ),
-			'posts'       => $post_count,
-			'super_admin' => is_super_admin( $user->ID ) ? 'yes' : 'no',
-			'last_login'  => $last_login ? gmdate( 'Y-m-d', (int) $last_login ) : 'never',
-		];
-		$progress->tick();
-	}
-
-	$progress->finish();
+	$table_rows = build_user_table(
+		$target_users,
+		$effective_logins ?? get_effective_last_login( array_column( $target_users, 'ID' ) )
+	);
 
 	WP_CLI::line( sprintf( "\nFound %d users to delete:\n", count( $table_rows ) ) );
 	format_items( 'table', $table_rows, array_keys( $table_rows[0] ) );
@@ -425,34 +401,10 @@ function set_role( array $args, array $assoc_args ): void {
 		return;
 	}
 
-	$table_rows = [];
-	$progress   = make_progress_bar( 'Searching users', count( $target_users ) );
-
-	foreach ( $target_users as $user ) {
-		$last_login = get_user_meta( $user->ID, NETWORK_USERS_LAST_LOGIN_META_KEY, true );
-		$blogs      = get_blogs_of_user( $user->ID );
-		$post_count = 0;
-
-		foreach ( $blogs as $blog ) {
-			switch_to_blog( (int) $blog->userblog_id );
-			// Excludes built-in internal types (revision, nav_menu_item, etc.) that inflate the count without representing real content.
-		$post_count += (int) count_user_posts( $user->ID, array_merge( get_post_types( [ '_builtin' => false ] ), [ 'post', 'page', 'attachment' ] ) );
-			restore_current_blog();
-		}
-
-		$table_rows[] = [
-			'ID'          => $user->ID,
-			'username'    => $user->user_login,
-			'email'       => $user->user_email,
-			'sites'       => count( $blogs ),
-			'posts'       => $post_count,
-			'super_admin' => is_super_admin( $user->ID ) ? 'yes' : 'no',
-			'last_login'  => $last_login ? gmdate( 'Y-m-d', (int) $last_login ) : 'never',
-		];
-		$progress->tick();
-	}
-
-	$progress->finish();
+	$table_rows = build_user_table(
+		$target_users,
+		$effective_logins ?? get_effective_last_login( array_column( $target_users, 'ID' ) )
+	);
 
 	WP_CLI::line( sprintf( "\nFound %d users to update:\n", count( $table_rows ) ) );
 	format_items( 'table', $table_rows, array_keys( $table_rows[0] ) );
@@ -607,8 +559,49 @@ function get_inactive_users( int $cutoff, array $exclude = [] ): array {
 				'number'  => -1,
 			]
 		),
+
 		'timestamps' => $timestamps,
 	];
+}
+
+/**
+ * Build the confirmation table rows shown before any destructive action.
+ *
+ * @param WP_User[]      $target_users
+ * @param array<int,int> $effective_logins Map of user_id => Unix timestamp.
+ * @return array[]
+ */
+function build_user_table( array $target_users, array $effective_logins ): array {
+	$table_rows = [];
+	$progress   = make_progress_bar( 'Searching users', count( $target_users ) );
+
+	foreach ( $target_users as $user ) {
+		$last_login = $effective_logins[ $user->ID ] ?? 0;
+		$blogs      = get_blogs_of_user( $user->ID );
+		$post_count = 0;
+
+		foreach ( $blogs as $blog ) {
+			switch_to_blog( (int) $blog->userblog_id );
+			// Excludes built-in internal types (revision, nav_menu_item, etc.) that inflate the count without representing real content.
+			$post_count += (int) count_user_posts( $user->ID, array_merge( get_post_types( [ '_builtin' => false ] ), [ 'post', 'page', 'attachment' ] ) );
+			restore_current_blog();
+		}
+
+		$table_rows[] = [
+			'ID'          => $user->ID,
+			'username'    => $user->user_login,
+			'email'       => $user->user_email,
+			'sites'       => count( $blogs ),
+			'posts'       => $post_count,
+			'super_admin' => is_super_admin( $user->ID ) ? 'yes' : 'no',
+			'last_login'  => $last_login ? gmdate( 'Y-m-d', $last_login ) : 'never',
+		];
+		$progress->tick();
+	}
+
+	$progress->finish();
+
+	return $table_rows;
 }
 
 /**
