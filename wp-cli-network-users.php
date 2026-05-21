@@ -29,6 +29,7 @@ use function WP_CLI\Utils\format_items;
 use function WP_CLI\Utils\make_progress_bar;
 
 const NETWORK_USERS_LAST_LOGIN_META_KEY = 'network_users_last_login';
+const WPVIP_LAST_SEEN_META_KEY          = 'wpvip_last_seen';
 
 if ( function_exists( 'add_action' ) ) {
 	add_action( 'wp_login', __NAMESPACE__ . '\save_last_login', 10, 2 );
@@ -175,35 +176,10 @@ function delete( array $args, array $assoc_args ): void {
 			$target_users[] = $resolved;
 		}
 	} elseif ( $never ) {
-		$target_users = get_users(
-			[
-				'number'     => -1,
-				'exclude'    => $exclude,
-				'meta_query' => [
-					[
-						'key'     => NETWORK_USERS_LAST_LOGIN_META_KEY,
-						'compare' => 'NOT EXISTS',
-					],
-				],
-			]
-		);
+		$target_users = get_users_without_activity( $exclude );
 	} else {
 		$cutoff = time() - ( $days * DAY_IN_SECONDS );
-
-		$target_users = get_users(
-			[
-				'number'     => -1,
-				'exclude'    => $exclude,
-				'meta_query' => [
-					[
-						'key'     => NETWORK_USERS_LAST_LOGIN_META_KEY,
-						'value'   => $cutoff,
-						'compare' => '<',
-						'type'    => 'NUMERIC',
-					],
-				],
-			]
-		);
+		[ 'users' => $target_users, 'timestamps' => $effective_logins ] = get_inactive_users( $cutoff, $exclude );
 	}
 
 	if ( empty( $target_users ) ) {
@@ -433,33 +409,10 @@ function set_role( array $args, array $assoc_args ): void {
 			$target_users[] = $resolved;
 		}
 	} elseif ( $never ) {
-		$target_users = get_users(
-			[
-				'number'     => -1,
-				'meta_query' => [
-					[
-						'key'     => NETWORK_USERS_LAST_LOGIN_META_KEY,
-						'compare' => 'NOT EXISTS',
-					],
-				],
-			]
-		);
+		$target_users = get_users_without_activity();
 	} else {
 		$cutoff = time() - ( $days * DAY_IN_SECONDS );
-
-		$target_users = get_users(
-			[
-				'number'     => -1,
-				'meta_query' => [
-					[
-						'key'     => NETWORK_USERS_LAST_LOGIN_META_KEY,
-						'value'   => $cutoff,
-						'compare' => '<',
-						'type'    => 'NUMERIC',
-					],
-				],
-			]
-		);
+		[ 'users' => $target_users, 'timestamps' => $effective_logins ] = get_inactive_users( $cutoff );
 	}
 
 	if ( empty( $target_users ) ) {
@@ -560,24 +513,144 @@ function resolve_user( string $input ): WP_User|false {
 }
 
 /**
- * Warn if users without a recorded login timestamp were skipped.
+ * Warn if users with no activity record were skipped by --inactive=<days>.
  */
 function warn_users_without_timestamp(): void {
-	$count = count(
-		get_users(
-			[
-				'number'     => -1,
-				'meta_query' => [
-					[
-						'key'     => NETWORK_USERS_LAST_LOGIN_META_KEY,
-						'compare' => 'NOT EXISTS',
-					],
-				],
-			]
-		)
-	);
+	$count = count( get_users_without_activity() );
 
 	if ( $count > 0 ) {
 		WP_CLI::warning( "{$count} " . ( 1 === $count ? 'user has' : 'users have' ) . ' no login timestamp and ' . ( 1 === $count ? 'was' : 'were' ) . ' skipped. Run with --inactive=never to target them.' );
 	}
+}
+
+/**
+ * Get users with no activity record from our data or VIP's.
+ *
+ * @param int[] $exclude User IDs to exclude.
+ * @return WP_User[]
+ */
+function get_users_without_activity( array $exclude = [] ): array {
+	return get_users(
+		[
+			'number'     => -1,
+			'exclude'    => $exclude,
+			'meta_query' => [
+				'relation' => 'AND',
+				[
+					'key'     => NETWORK_USERS_LAST_LOGIN_META_KEY,
+					'compare' => 'NOT EXISTS',
+				],
+				[
+					'key'     => WPVIP_LAST_SEEN_META_KEY,
+					'compare' => 'NOT EXISTS',
+				],
+			],
+		]
+	);
+}
+
+/**
+ * Get users whose most recent activity predates $cutoff, along with their effective timestamp.
+ *
+ * Only considers users who have at least one of the two activity meta keys — users with neither
+ * belong in --inactive=never.
+ *
+ * @param int   $cutoff  Unix timestamp; users last active before this are returned.
+ * @param int[] $exclude User IDs to exclude.
+ * @return array{ users: WP_User[], timestamps: array<int,int> }
+ */
+function get_inactive_users( int $cutoff, array $exclude = [] ): array {
+	global $wpdb;
+
+	$exclude_sql = '';
+	if ( ! empty( $exclude ) ) {
+		$exclude_sql = 'AND u.ID NOT IN (' . implode( ',', array_map( 'intval', $exclude ) ) . ')';
+	}
+
+	$rows = $wpdb->get_results(
+		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			"SELECT u.ID, MAX(CAST(um.meta_value AS UNSIGNED)) AS effective_ts
+			 FROM %i u
+			 INNER JOIN %i um ON u.ID = um.user_id
+			     AND um.meta_key IN (%s, %s)
+			 WHERE 1=1 {$exclude_sql}
+			 GROUP BY u.ID
+			 HAVING effective_ts < %d",
+			$wpdb->users,
+			$wpdb->usermeta,
+			NETWORK_USERS_LAST_LOGIN_META_KEY,
+			WPVIP_LAST_SEEN_META_KEY,
+			$cutoff
+		)
+	);
+
+	if ( empty( $rows ) ) {
+		return [
+			'users'      => [],
+			'timestamps' => [],
+		];
+	}
+
+	$timestamps = [];
+	$user_ids   = [];
+
+	foreach ( $rows as $row ) {
+		$user_ids[]                   = (int) $row->ID;
+		$timestamps[ (int) $row->ID ] = (int) $row->effective_ts;
+	}
+
+	return [
+		'users'      => get_users(
+			[
+				'include' => $user_ids,
+				'number'  => -1,
+			]
+		),
+		'timestamps' => $timestamps,
+	];
+}
+
+/**
+ * Fetch the effective last-login timestamp for a set of users.
+ *
+ * Used when timestamps weren't precomputed during selection (--users, --inactive=never).
+ *
+ * @param int[] $user_ids
+ * @return array<int,int> Map of user_id => Unix timestamp (0 if neither meta is set).
+ */
+function get_effective_last_login( array $user_ids ): array {
+	if ( empty( $user_ids ) ) {
+		return [];
+	}
+
+	global $wpdb;
+
+	$in_clause = implode( ',', array_map( 'intval', $user_ids ) );
+
+	$rows = $wpdb->get_results(
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->prepare(
+			"SELECT user_id, meta_key, meta_value
+			FROM %i
+			WHERE
+				meta_key IN (%s, %s) AND
+				user_id IN ({$in_clause})",
+			$wpdb->usermeta,
+			NETWORK_USERS_LAST_LOGIN_META_KEY,
+			WPVIP_LAST_SEEN_META_KEY
+		)
+	);
+
+	$timestamps = [];
+
+	foreach ( $rows as $row ) {
+		$user_id = (int) $row->user_id;
+		$value   = (int) $row->meta_value;
+		if ( ! isset( $timestamps[ $user_id ] ) || $value > $timestamps[ $user_id ] ) {
+			$timestamps[ $user_id ] = $value;
+		}
+	}
+
+	return $timestamps;
 }

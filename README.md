@@ -65,6 +65,7 @@ wp site list --field=url --network | xargs -I {} wp --url={} user set-role jubal
 - **Targeting assigned sites** — only sets the user's role on sites they're already a member of; the `wp site list... set-role` loop adds them to every site in the network
 - **Multiple users at once** — comma-separated IDs, usernames, or emails in a single command
 - **Dry-run preview** — see who would be affected before committing (`--dry-run`)
+- **VIP-aware inactivity** — automatically incorporates WordPress VIP's `wpvip_last_seen` data when present, so users active via VIP but never tracked by this plugin are still handled correctly
 - **Convenience** - you don't have to remember or look up how to pipe site URLs to `xargs`
 - **Using usernames or emails** when reassigning content, instead of having to look up IDs
 - **Super admin protection** on delete — super admins are skipped by default; opt in with `--include-super-admins`
@@ -118,8 +119,8 @@ wp user delete-network --inactive=never --no-reassign --scope=network
 **Flags:**
 
 - `--users=<users>` — Comma-separated list of user IDs, usernames, or emails. Mutually exclusive with `--inactive`.
-- `--inactive=<days>` — Target users who have not logged in within this many days. Only matches users with a recorded timestamp. Mutually exclusive with `--users`.
-- `--inactive=never` — Target users with no recorded login timestamp. Mutually exclusive with `--users`.
+- `--inactive=<days>` — Target users whose most recent activity is older than this many days. Mutually exclusive with `--users`.
+- `--inactive=never` — Target users with no activity record. Mutually exclusive with `--users`.
 - `--reassign=<user>` — User ID, username, or email to reassign all content to. Mutually exclusive with `--no-reassign`.
 - `--no-reassign` — Permanently delete all content belonging to removed users. Mutually exclusive with `--reassign`.
 - `--scope=<scope>` — `sites` removes users from all site memberships but keeps their network account. `network` also permanently deletes the account. Required.
@@ -149,8 +150,8 @@ wp user set-role-network --inactive=never --role=subscriber
 **Flags:**
 
 - `--users=<users>` — Comma-separated list of user IDs, usernames, or emails. Mutually exclusive with `--inactive`.
-- `--inactive=<days>` — Target users who have not logged in within this many days. Only matches users with a recorded timestamp. Mutually exclusive with `--users`.
-- `--inactive=never` — Target users with no recorded login timestamp. Mutually exclusive with `--users`.
+- `--inactive=<days>` — Target users whose most recent activity is older than this many days. Mutually exclusive with `--users`.
+- `--inactive=never` — Target users with no activity record from either source. Mutually exclusive with `--users`.
 - `--role=<role>` — Role to assign. Defaults to `subscriber`.
 - `--dry-run` — Show what would be changed without making any changes.
 - `--yes` — Skip confirmation prompt.
@@ -160,8 +161,8 @@ Before updating, shows the same confirmation table as `delete-network`.
 
 ## Notes
 
-- Inactivity is determined by the last date they logged in.
-- ⚠️ Users who last logged in before this plugin was deployed won't have inactivity data. Use `--inactive=never` to target them specifically, but keep in mind that they may have logged in recently if you just installed the plugin.
+- Inactivity is determined by the most recent of two timestamps: this plugin's own `network_users_last_login` (recorded at login) and WordPress VIP's `wpvip_last_seen` (recorded on each page load), if present. Whichever is newer wins.
+- ⚠️ Users with neither timestamp won't be matched by `--inactive=<days>`. Use `--inactive=never` to target them specifically.
 - This is only intended for Multisite networks, and hasn't been tested in single sites.
 
 

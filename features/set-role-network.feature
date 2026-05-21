@@ -92,3 +92,18 @@ Feature: Set role for users across the network
       a super admin
       """
     And the return code should be 0
+
+  Scenario: wpvip_last_seen alone marks user as inactive
+    Given I run `wp user meta update testuser1 wpvip_last_seen 1`
+    When I try `wp user set-role-network --inactive=1 --yes`
+    Then the return code should be 0
+
+  Scenario: wpvip_last_seen overrides old network_users_last_login
+    Given I run `wp user meta update testuser1 network_users_last_login 1`
+    And I run `wp user meta update testuser1 wpvip_last_seen 9999999999`
+    When I try `wp user set-role-network --inactive=1 --yes`
+    Then STDOUT should contain:
+      """
+      No users found inactive for
+      """
+    And the return code should be 0

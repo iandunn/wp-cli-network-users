@@ -145,3 +145,28 @@ Feature: Delete users across the network
       no login timestamp and were skipped
       """
     And the return code should be 0
+
+  Scenario: wpvip_last_seen alone marks user as inactive
+    Given I run `wp user meta update testuser1 wpvip_last_seen 1`
+    When I try `wp user delete-network --inactive=1 --no-reassign --scope=network --yes`
+    Then the return code should be 0
+
+  Scenario: wpvip_last_seen overrides old network_users_last_login
+    Given I run `wp user meta update testuser1 network_users_last_login 1`
+    And I run `wp user meta update testuser1 wpvip_last_seen 9999999999`
+    When I try `wp user delete-network --inactive=1 --no-reassign --scope=network --yes`
+    Then STDOUT should contain:
+      """
+      No users found inactive for
+      """
+    And the return code should be 0
+
+  Scenario: wpvip_last_seen excludes user from --inactive=never
+    Given I run `wp user meta update testuser1 wpvip_last_seen 1`
+    When I try `wp user delete-network --inactive=never --no-reassign --scope=network --yes`
+    Then STDOUT should contain:
+      """
+      Success:
+      """
+    And the return code should be 0
+    And I run `wp user get testuser1`
