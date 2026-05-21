@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Entry point for `composer test`, `composer test-serial`, etc.
+# Routes to bin/behat-localwp in a LocalWP environment, or run-behat-tests otherwise.
+# Forwards all arguments so flags like --serial, --rerun, --debug pass through cleanly.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+if [ -n "$LOCALWP_PHP_PATH" ]; then
+	exec "${SCRIPT_DIR}/behat-localwp" "$@"
+else
+	# Strip flags that are LocalWP-specific and unknown to run-behat-tests / behat.
+	ARGS=()
+	for arg in "$@"; do
+		case "$arg" in
+			--serial|--debug) ;;
+			*) ARGS+=("$arg") ;;
+		esac
+	done
+	exec run-behat-tests "${ARGS[@]}"
+fi
