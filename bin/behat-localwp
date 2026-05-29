@@ -65,19 +65,18 @@ BEHAT="${SCRIPT_DIR}/../vendor/bin/behat"
 FASTEST="${SCRIPT_DIR}/../vendor/bin/fastest"
 
 SERIAL=false
-if [[ "$*" == *"--serial"* ]]; then
-	SERIAL=true
-fi
-
 RERUN_FLAG=""
-if [[ "$*" == *"--rerun"* ]]; then
-	RERUN_FLAG="--rerun-failed"
-fi
-
 DEBUG=false
-if [[ "$*" == *"--debug"* ]]; then
-	DEBUG=true
-fi
+BEHAT_ARGS=()
+
+for arg in "$@"; do
+	case "$arg" in
+		--serial) SERIAL=true ;;
+		--rerun) RERUN_FLAG="--rerun-failed" ;;
+		--debug) DEBUG=true ;;
+		*) BEHAT_ARGS+=("$arg") ;;
+	esac
+done
 
 # If the download cache exists but is missing wp-config-sample.php it's partially corrupt —
 # WP-CLI would try to re-download but bootstrap from the stale files first, causing a fatal
@@ -88,7 +87,7 @@ if [ -d "$DOWNLOAD_CACHE_DIR" ] && [ ! -f "$DOWNLOAD_CACHE_DIR/wp-config-sample.
 fi
 
 if [ "$SERIAL" = true ]; then
-	WP_CLI_TEST_DBNAME=wp_cli_test "$BEHAT"
+	WP_CLI_TEST_DBNAME=wp_cli_test "$BEHAT" "${BEHAT_ARGS[@]}"
 else
 	# Delete the install cache before workers start so @BeforeSuite's file_exists() check
 	# returns false and it skips remove_dir(). Without this, each of the 20 concurrent behat
@@ -101,7 +100,7 @@ else
 	if [ "$DEBUG" = true ]; then
 		LOG_DIR=$(mktemp -d)
 		set +e
-		"$BEHAT" --list-features | "$FASTEST" $RERUN_FLAG -vv -p 2 "WP_CLI_TEST_DBNAME=wp_cli_test_{p} $BEHAT {} > $LOG_DIR/worker-{p}.log 2>&1"
+		"$BEHAT" --list-features | "$FASTEST" $RERUN_FLAG -vv -p 2 "WP_CLI_TEST_DBNAME=wp_cli_test_{p} $BEHAT ${BEHAT_ARGS[*]} {} > $LOG_DIR/worker-{p}.log 2>&1"
 		FASTEST_EXIT=$?
 		set -e
 		echo ""
@@ -110,6 +109,6 @@ else
 		rm -rf "$LOG_DIR"
 		exit $FASTEST_EXIT
 	else
-		"$BEHAT" --list-features | "$FASTEST" $RERUN_FLAG -vv -p 2 "WP_CLI_TEST_DBNAME=wp_cli_test_{p} $BEHAT {}"
+		"$BEHAT" --list-features | "$FASTEST" $RERUN_FLAG -vv -p 2 "WP_CLI_TEST_DBNAME=wp_cli_test_{p} $BEHAT ${BEHAT_ARGS[*]} {}"
 	fi
 fi
