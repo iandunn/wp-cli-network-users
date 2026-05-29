@@ -87,7 +87,9 @@ if [ -d "$DOWNLOAD_CACHE_DIR" ] && [ ! -f "$DOWNLOAD_CACHE_DIR/wp-config-sample.
 fi
 
 if [ "$SERIAL" = true ]; then
-	WP_CLI_TEST_DBNAME=wp_cli_test "$BEHAT" "${BEHAT_ARGS[@]}"
+	RERUN_ARG=""
+	[ -n "$RERUN_FLAG" ] && RERUN_ARG="--rerun"
+	WP_CLI_TEST_DBNAME=wp_cli_test "$BEHAT" $RERUN_ARG "${BEHAT_ARGS[@]}"
 else
 	# Delete the install cache before workers start so @BeforeSuite's file_exists() check
 	# returns false and it skips remove_dir(). Without this, each of the 20 concurrent behat

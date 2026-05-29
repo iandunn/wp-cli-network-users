@@ -33,7 +33,7 @@
 
 	"scripts" : {
 		"test"          : [ "Composer\\Config::disableProcessTimeout", "bin/test" ],
-		"test-rerun"    : [ "Composer\\Config::disableProcessTimeout", "bin/test --rerun" ],
+		"test-rerun"    : [ "Composer\\Config::disableProcessTimeout", "bin/test --serial --rerun" ],
 		"test-serial"   : [ "Composer\\Config::disableProcessTimeout", "bin/test --serial" ],
 		"prepare-tests" : "install-package-tests"
 	},
