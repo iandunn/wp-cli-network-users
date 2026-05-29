@@ -3,7 +3,7 @@
  * Plugin Name: WP-CLI Network Users
  * Plugin URI:  https://github.com/iandunn/wp-cli-network-users
  * Description: WP-CLI commands for managing users across a WordPress Multisite network. Also tracks last login timestamps for all users.
- * Version:     1.0.3
+ * Version:     1.0.4
  * Author:      Ian Dunn
  * Author URI:  https://iandunn.name
  * License:     GPLv2
