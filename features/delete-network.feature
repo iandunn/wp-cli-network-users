@@ -5,6 +5,7 @@ Feature: Delete users across the network
     And I run `wp user create testuser1 testuser1@example.com --role=subscriber`
     And I run `wp user create testuser2 testuser2@example.com --role=subscriber`
 
+  @validation
   Scenario: Requires --users or --inactive
     When I try `wp user delete-network --no-reassign --scope=network --yes`
     Then STDERR should contain:
@@ -13,6 +14,7 @@ Feature: Delete users across the network
       """
     And the return code should be 1
 
+  @validation
   Scenario: --users and --inactive are mutually exclusive
     When I try `wp user delete-network --users=testuser1 --inactive=30 --no-reassign --scope=network --yes`
     Then STDERR should contain:
@@ -21,6 +23,7 @@ Feature: Delete users across the network
       """
     And the return code should be 1
 
+  @validation
   Scenario: Requires --reassign or --no-reassign
     When I try `wp user delete-network --users=testuser1 --scope=network --yes`
     Then STDERR should contain:
@@ -29,6 +32,7 @@ Feature: Delete users across the network
       """
     And the return code should be 1
 
+  @validation
   Scenario: Requires --scope
     When I try `wp user delete-network --users=testuser1 --no-reassign --yes`
     Then STDERR should contain:
@@ -37,6 +41,7 @@ Feature: Delete users across the network
       """
     And the return code should be 1
 
+  @validation
   Scenario: Invalid --scope value
     When I try `wp user delete-network --users=testuser1 --no-reassign --scope=invalid --yes`
     Then STDERR should contain:
@@ -45,6 +50,7 @@ Feature: Delete users across the network
       """
     And the return code should be 1
 
+  @validation
   Scenario: --include-super-admins requires --scope=network
     When I try `wp user delete-network --users=testuser1 --no-reassign --scope=sites --include-super-admins --yes`
     Then STDERR should contain:
@@ -53,6 +59,7 @@ Feature: Delete users across the network
       """
     And the return code should be 1
 
+  @validation
   Scenario: Unknown user errors
     When I try `wp user delete-network --users=nobody@example.com --no-reassign --scope=network --yes`
     Then STDERR should contain:
@@ -61,6 +68,7 @@ Feature: Delete users across the network
       """
     And the return code should be 1
 
+  @scope
   Scenario: scope=sites removes users from sites but keeps network account
     When I run `wp user delete-network --users=testuser1 --no-reassign --scope=sites --yes`
     Then STDOUT should contain:
@@ -69,6 +77,7 @@ Feature: Delete users across the network
       """
     And I run `wp user get testuser1`
 
+  @happy-path
   Scenario: Delete a specific user by username
     When I run `wp user delete-network --users=testuser1 --no-reassign --scope=network --yes`
     Then STDOUT should contain:
@@ -81,6 +90,7 @@ Feature: Delete users across the network
       Invalid user
       """
 
+  @happy-path
   Scenario: Delete a specific user by email with reassign
     When I run `wp user delete-network --users=testuser1@example.com --reassign=1 --scope=network --yes`
     Then STDOUT should contain:
@@ -88,6 +98,7 @@ Feature: Delete users across the network
       Success:
       """
 
+  @super-admin
   Scenario: Super admin skipped when using --scope=network without --include-super-admins
     Given I run `wp super-admin add testuser1`
     When I try `wp user delete-network --users=testuser1 --no-reassign --scope=network --yes`
@@ -98,6 +109,7 @@ Feature: Delete users across the network
     And the return code should be 0
     And I run `wp user get testuser1`
 
+  @super-admin
   Scenario: --include-super-admins deletes super admin with --scope=network
     Given I run `wp super-admin add testuser1`
     When I run `wp user delete-network --users=testuser1 --no-reassign --scope=network --include-super-admins --yes`
@@ -111,6 +123,7 @@ Feature: Delete users across the network
       Invalid user
       """
 
+  @inactive
   Scenario: No inactive users found
     When I try `wp user delete-network --inactive=1 --no-reassign --scope=network --yes`
     Then STDOUT should contain:
@@ -119,6 +132,7 @@ Feature: Delete users across the network
       """
     And the return code should be 0
 
+  @inactive
   Scenario: Delete inactive users
     Given I run `wp user meta update testuser1 network_users_last_login 1`
     And I run `wp user meta update testuser2 network_users_last_login 1`
@@ -129,6 +143,7 @@ Feature: Delete users across the network
       """
     And the return code should be 0
 
+  @inactive
   Scenario: Delete users with no login timestamp
     When I try `wp user delete-network --inactive=never --no-reassign --scope=network --yes`
     Then STDOUT should contain:
@@ -137,6 +152,7 @@ Feature: Delete users across the network
       """
     And the return code should be 0
 
+  @inactive
   Scenario: Warning shown for users without timestamp when using --inactive=<days>
     Given I run `wp user meta update testuser1 network_users_last_login 1`
     When I try `wp user delete-network --inactive=1 --no-reassign --scope=network --yes`
@@ -146,11 +162,13 @@ Feature: Delete users across the network
       """
     And the return code should be 0
 
+  @vip
   Scenario: wpvip_last_seen alone marks user as inactive
     Given I run `wp user meta update testuser1 wpvip_last_seen 1`
     When I try `wp user delete-network --inactive=1 --no-reassign --scope=network --yes`
     Then the return code should be 0
 
+  @vip
   Scenario: wpvip_last_seen overrides old network_users_last_login
     Given I run `wp user meta update testuser1 network_users_last_login 1`
     And I run `wp user meta update testuser1 wpvip_last_seen 9999999999`
@@ -161,6 +179,7 @@ Feature: Delete users across the network
       """
     And the return code should be 0
 
+  @vip
   Scenario: wpvip_last_seen excludes user from --inactive=never
     Given I run `wp user meta update testuser1 wpvip_last_seen 1`
     When I try `wp user delete-network --inactive=never --no-reassign --scope=network --yes`

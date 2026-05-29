@@ -4,6 +4,7 @@ Feature: Set role for users across the network
     Given a WP multisite install
     And I run `wp user create testuser1 testuser1@example.com --role=editor`
 
+  @validation
   Scenario: Requires --users or --inactive
     When I try `wp user set-role-network --yes`
     Then STDERR should contain:
@@ -12,6 +13,7 @@ Feature: Set role for users across the network
       """
     And the return code should be 1
 
+  @validation
   Scenario: --users and --inactive are mutually exclusive
     When I try `wp user set-role-network --users=testuser1 --inactive=30 --yes`
     Then STDERR should contain:
@@ -20,6 +22,7 @@ Feature: Set role for users across the network
       """
     And the return code should be 1
 
+  @validation
   Scenario: Invalid role errors
     When I try `wp user set-role-network --users=testuser1 --role=nonexistent --yes`
     Then STDERR should contain:
@@ -28,6 +31,7 @@ Feature: Set role for users across the network
       """
     And the return code should be 1
 
+  @validation
   Scenario: Unknown user errors
     When I try `wp user set-role-network --users=nobody@example.com --yes`
     Then STDERR should contain:
@@ -36,6 +40,7 @@ Feature: Set role for users across the network
       """
     And the return code should be 1
 
+  @happy-path
   Scenario: Set role by username, defaults to subscriber
     When I run `wp user set-role-network --users=testuser1 --yes`
     Then STDOUT should contain:
@@ -43,6 +48,7 @@ Feature: Set role for users across the network
       Success:
       """
 
+  @happy-path
   Scenario: Set role by email with explicit role
     When I run `wp user set-role-network --users=testuser1@example.com --role=author --yes`
     Then STDOUT should contain:
@@ -50,6 +56,7 @@ Feature: Set role for users across the network
       Success:
       """
 
+  @inactive
   Scenario: No inactive users found
     When I try `wp user set-role-network --inactive=1 --yes`
     Then STDOUT should contain:
@@ -58,6 +65,7 @@ Feature: Set role for users across the network
       """
     And the return code should be 0
 
+  @inactive
   Scenario: Update inactive users
     Given I run `wp user meta update testuser1 network_users_last_login 1`
     When I try `wp user set-role-network --inactive=1 --yes`
@@ -67,6 +75,7 @@ Feature: Set role for users across the network
       """
     And the return code should be 0
 
+  @inactive
   Scenario: Update users with no login timestamp
     When I try `wp user set-role-network --inactive=never --yes`
     Then STDOUT should contain:
@@ -75,6 +84,7 @@ Feature: Set role for users across the network
       """
     And the return code should be 0
 
+  @inactive
   Scenario: Warning shown for users without timestamp when using --inactive=<days>
     Given I run `wp user meta update testuser1 network_users_last_login 1`
     When I try `wp user set-role-network --inactive=1 --yes`
@@ -84,6 +94,7 @@ Feature: Set role for users across the network
       """
     And the return code should be 0
 
+  @super-admin
   Scenario: Warn when target users include a super admin
     Given I run `wp super-admin add testuser1`
     When I try `wp user set-role-network --users=testuser1 --yes`
@@ -93,11 +104,13 @@ Feature: Set role for users across the network
       """
     And the return code should be 0
 
+  @vip
   Scenario: wpvip_last_seen alone marks user as inactive
     Given I run `wp user meta update testuser1 wpvip_last_seen 1`
     When I try `wp user set-role-network --inactive=1 --yes`
     Then the return code should be 0
 
+  @vip
   Scenario: wpvip_last_seen overrides old network_users_last_login
     Given I run `wp user meta update testuser1 network_users_last_login 1`
     And I run `wp user meta update testuser1 wpvip_last_seen 9999999999`
