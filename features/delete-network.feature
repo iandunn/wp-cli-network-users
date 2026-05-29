@@ -189,3 +189,28 @@ Feature: Delete users across the network
       """
     And the return code should be 0
     And I run `wp user get testuser1`
+
+  @inactive
+  Scenario: --inactive=never targets all network users, not just those on the current site
+    Given I run `wp site create --slug=second`
+    And I run `wp --url=https://example.com/second/ user create siteuser siteuser@example.com --role=editor`
+    When I try `wp user delete-network --inactive=never --no-reassign --scope=network --yes`
+    Then the return code should be 0
+    And I try `wp user get siteuser`
+    Then STDERR should contain:
+      """
+      Invalid user
+      """
+
+  @inactive
+  Scenario: --inactive=<days> targets all network users, not just those on the current site
+    Given I run `wp site create --slug=second`
+    And I run `wp --url=https://example.com/second/ user create siteuser siteuser@example.com --role=editor`
+    And I run `wp user meta update siteuser network_users_last_login 1`
+    When I try `wp user delete-network --inactive=1 --no-reassign --scope=network --yes`
+    Then the return code should be 0
+    And I try `wp user get siteuser`
+    Then STDERR should contain:
+      """
+      Invalid user
+      """

@@ -509,6 +509,7 @@ function get_users_without_activity( array $exclude = [] ): array {
 	return get_users(
 		[
 			'number'     => -1,
+			'blog_id'    => 0,
 			'exclude'    => $exclude,
 			'meta_query' => [
 				'relation' => 'AND',
@@ -581,6 +582,7 @@ function get_inactive_users( int $cutoff, array $exclude = [] ): array {
 			[
 				'include' => $user_ids,
 				'number'  => -1,
+				'blog_id' => 0,
 			]
 		),
 

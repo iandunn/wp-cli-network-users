@@ -120,3 +120,28 @@ Feature: Set role for users across the network
       No users found inactive for
       """
     And the return code should be 0
+
+  @inactive @network-wide
+  Scenario: --inactive=never targets all network users, not just those on the current site
+    Given I run `wp site create --slug=second`
+    And I run `wp --url=https://example.com/second/ user create siteuser siteuser@example.com --role=editor`
+    When I try `wp user set-role-network --inactive=never --yes`
+    Then the return code should be 0
+    And I run `wp --url=https://example.com/second/ user get siteuser --field=roles`
+    Then STDOUT should contain:
+      """
+      subscriber
+      """
+
+  @inactive @network-wide
+  Scenario: --inactive=<days> targets all network users, not just those on the current site
+    Given I run `wp site create --slug=second`
+    And I run `wp --url=https://example.com/second/ user create siteuser siteuser@example.com --role=editor`
+    And I run `wp user meta update siteuser network_users_last_login 1`
+    When I try `wp user set-role-network --inactive=1 --yes`
+    Then the return code should be 0
+    And I run `wp --url=https://example.com/second/ user get siteuser --field=roles`
+    Then STDOUT should contain:
+      """
+      subscriber
+      """
