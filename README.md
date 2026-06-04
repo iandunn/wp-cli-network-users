@@ -3,7 +3,9 @@ WP-CLI Network Users
 
 WP-CLI commands for managing users across a WordPress Multisite network.
 
-Provides `wp user delete-network` and `wp user set-role-network`. Both can be applied to users who haven't been active in the past `n` days.
+Provides `wp user delete-network` and `wp user set-role-network`. Both can be applied to users who haven't been active in the past `n` days, or who have never been active.
+
+"Active" just means that they've logged in during the given time period.
 
 ```bash
 > wp user delete-network --inactive=180 --reassign=jane.doe --scope=network --dry-run
@@ -60,12 +62,12 @@ wp site list --field=url --network | xargs -I {} wp --url={} user set-role jubal
 
 ## Use this if you want:
 
-- **Inactivity targeting** — bulk-target users who haven't logged in within N days, or ever since the plugin was installed (`--inactive=<days>` / `--inactive=never`)
+- **Inactivity targeting** — bulk-target users who haven't logged in within `n` days, or ever since the plugin was installed (`--inactive=<days>` / `--inactive=never`)
 - **Speed on large networks** - this is much faster than the `wp site list...` loop, because it only acts on sites the user is already on, and doesn't re-load WP for every site
 - **Targeting assigned sites** — only sets the user's role on sites they're already a member of; the `wp site list... set-role` loop adds them to every site in the network
 - **Multiple users at once** — comma-separated IDs, usernames, or emails in a single command
 - **Dry-run preview** — see who would be affected before committing (`--dry-run`)
-- **VIP-aware inactivity** — automatically incorporates WordPress VIP's `wpvip_last_seen` data when present, so users active via VIP but never tracked by this plugin are still handled correctly
+- **VIP-aware inactivity** — automatically incorporates WordPress VIP's `wpvip_last_seen` data when present, so users active via VIP before this plugin was installed are still handled correctly
 - **Convenience** - you don't have to remember or look up how to pipe site URLs to `xargs`
 - **Using usernames or emails** when reassigning content, instead of having to look up IDs
 - **Super admin protection** on delete — super admins are skipped by default; opt in with `--include-super-admins`
@@ -73,31 +75,29 @@ wp site list --field=url --network | xargs -I {} wp --url={} user set-role jubal
 
 ## Installing
 
-```bash
-composer require iandunn/wp-cli-network-users
-```
+1. Ensure your `composer.json` has `composer/installers` and the plugins path configured. Most Composer-managed WordPress projects will already have this.
+	```json
+	{
+		"require": {
+			"composer/installers": "^2.2"
+		},
+		"extra": {
+			"installer-paths": {
+			"wp-content/plugins/{$name}/": ["type:wordpress-plugin"]
+			}
+		}
+	}
+	```
 
-Ensure your `composer.json` has `composer/installers` and the plugins path configured:
+1. Install the plugin:
+	```bash
+	composer require iandunn/wp-cli-network-users
+	```
 
-```json
-{
-  "require": {
-    "composer/installers": "^2.2"
-  },
-  "extra": {
-    "installer-paths": {
-      "wp-content/plugins/{$name}/": ["type:wordpress-plugin"]
-    }
-  }
-}
-```
-
-Then activate the plugin:
-
-```bash
-wp plugin activate wp-cli-network-users --network
-```
-
+1. Activate the plugin:
+	```bash
+	wp plugin activate wp-cli-network-users --network
+	```
 
 ## Commands
 
