@@ -1,7 +1,7 @@
 WP-CLI Network Users
 ====================
 
-WP-CLI commands for managing users across a WordPress Multisite network.
+[WP-CLI](http://wp-cli.org/) commands for managing users across a WordPress Multisite network.
 
 Provides `wp user delete-network` and `wp user set-role-network`. Both can be applied to users who haven't been active in the past `n` days, or who have never been active.
 
@@ -64,7 +64,7 @@ wp site list --field=url --network | xargs -I {} wp --url={} user set-role jubal
 
 - **Inactivity targeting** — bulk-target users who haven't logged in within `n` days, or ever since the plugin was installed (`--inactive=<days>` / `--inactive=never`)
 - **Speed on large networks** - this is much faster than the `wp site list...` loop, because it only acts on sites the user is already on, and doesn't re-load WP for every site
-- **Targeting assigned sites** — only sets the user's role on sites they're already a member of; the `wp site list... set-role` loop adds them to every site in the network
+- **Flexible site targeting** — `--sites=current` updates only sites the user already belongs to; `--sites=all` adds them to every site; or target specific sites by ID or URL
 - **Multiple users at once** — comma-separated IDs, usernames, or emails in a single command
 - **Dry-run preview** — see who would be affected before committing (`--dry-run`)
 - **VIP-aware inactivity** — automatically incorporates WordPress VIP's `wpvip_last_seen` data when present, so users active via VIP before this plugin was installed are still handled correctly
@@ -138,12 +138,15 @@ Set a role for users on every site they belong to across the network. Leave off 
 
 ```bash
 # Target by user ID, username, or email
-wp user set-role-network --users=42,atherton.wing@example.org,saffron.reynolds # set to `subscriber` by default
-wp user set-role-network --users=simon.tam,kaylee.frye --role=administrator
+wp user set-role-network --users=42,atherton.wing@example.org,saffron.reynolds --sites=current # set to `subscriber` by default
+wp user set-role-network --users=simon.tam,kaylee.frye --role=administrator --sites=all
 
 # Target by inactivity
-wp user set-role-network --inactive=365
-wp user set-role-network --inactive=never --role=subscriber
+wp user set-role-network --inactive=365 --sites=current
+wp user set-role-network --inactive=never --sites=current
+
+# Target specific sites by ID or URL
+wp user set-role-network --users=simon.tam --role=editor --sites=2,foo.example.org,example.org/bar
 ```
 
 
@@ -153,6 +156,7 @@ wp user set-role-network --inactive=never --role=subscriber
 - `--inactive=<days>` — Target users whose most recent activity is older than this many days. Mutually exclusive with `--users`.
 - `--inactive=never` — Target users with no activity record from either source. Mutually exclusive with `--users`.
 - `--role=<role>` — Role to assign. Defaults to `subscriber`.
+- `--sites=<sites>` — Required. Which sites to update: `current` only updates sites the user already belongs to; `all` updates every site in the network, adding users to any they're not on; or a comma-separated list of site IDs or URLs (e.g. `2,foo.example.org,example.org/bar`).
 - `--dry-run` — Show what would be changed without making any changes.
 - `--yes` — Skip confirmation prompt.
 

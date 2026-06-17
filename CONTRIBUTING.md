@@ -22,4 +22,4 @@ composer run test-serial features/delete-network.feature		# Test single feature 
 composer run test-serial features/delete-network.feature:125	# Test single scenario on line 125
 ```
 
-Tests run via `bin/behat-localwp` when inside a LocalWP shell (`LOCALWP_PHP_PATH` is set), and via `run-behat-tests` otherwise. They're parallelized via [liuggio/fastest](https://github.com/liuggio/fastest).
+Tests run via `bin/behat-localwp` when inside a [LocalWP](https://localwp.com/) shell (`LOCALWP_PHP_PATH` is set), and via `run-behat-tests` otherwise. They're parallelized via [liuggio/fastest](https://github.com/liuggio/fastest).

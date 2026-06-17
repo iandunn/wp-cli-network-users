@@ -187,7 +187,7 @@ function delete( array $args, array $assoc_args ): void {
 	}
 
 	if ( $dry_run ) {
-		WP_CLI::line( "\nDry run — no changes made." );
+		WP_CLI::warning( 'Dry run — no changes made.' );
 		return;
 	}
 
@@ -304,6 +304,12 @@ function delete( array $args, array $assoc_args ): void {
  * [--role=<role>]
  * : Role to assign. Default: subscriber.
  *
+ * [--sites=<sites>]
+ * : Which sites to update. 'current' updates only sites the user already belongs to.
+ *   'all' updates all network sites, adding users to any they're not already on.
+ *   Or a comma-separated list of site IDs and/or URLs (e.g. 1,2,foo.example.org,example.org/bar).
+ *   Required.
+ *
  * [--dry-run]
  * : Show what would be changed without making any changes.
  *
@@ -312,10 +318,12 @@ function delete( array $args, array $assoc_args ): void {
  *
  * ## EXAMPLES
  *
- *     wp user set-role-network --inactive=365
- *     wp user set-role-network --inactive=365 --dry-run
- *     wp user set-role-network --inactive=never
- *     wp user set-role-network --users=42,99,jane@example.com --role=subscriber
+ *     wp user set-role-network --users=42,atherton.wing@example.org,saffron.reynolds --sites=current
+ *     wp user set-role-network --users=simon.tam,kaylee.frye --role=administrator --sites=all
+ *     wp user set-role-network --inactive=365 --sites=current
+ *     wp user set-role-network --inactive=365 --sites=current --dry-run
+ *     wp user set-role-network --inactive=never --sites=current
+ *     wp user set-role-network --users=simon.tam --role=editor --sites=2,foo.example.org,example.org/bar
  *
  * @param array $args       Positional args.
  * @param array $assoc_args Associative args.
@@ -341,6 +349,17 @@ function set_role( array $args, array $assoc_args ): void {
 		return;
 	}
 
+	$sites_mode      = parse_sites_arg( $assoc_args );
+	$global_blog_ids = [];
+
+	if ( 'all' === $sites_mode ) {
+		foreach ( get_sites( [ 'number' => 10000 ] ) as $site ) {
+			$global_blog_ids[] = (int) $site->blog_id;
+		}
+	} elseif ( is_array( $sites_mode ) ) {
+		$global_blog_ids = $sites_mode;
+	}
+
 	$table_rows = build_user_table(
 		$target_users,
 		$effective_logins ?: get_effective_last_login( array_column( $target_users, 'ID' ) )
@@ -357,22 +376,27 @@ function set_role( array $args, array $assoc_args ): void {
 	}
 
 	if ( $dry_run ) {
-		WP_CLI::line( "\nDry run — no changes made." );
+		WP_CLI::warning( 'Dry run — no changes made.' );
 		return;
 	}
 
-	WP_CLI::confirm( 'Set role for these users on all their sites?', $assoc_args );
+	$sites_label = match ( true ) {
+		'current' === $sites_mode => 'their current sites',
+		'all' === $sites_mode     => "all network sites (adding them to any they don't already belong to)",
+		default                   => sprintf( "%d specific %s (adding them to any they don't already belong to)", count( $sites_mode ), 1 === count( $sites_mode ) ? 'site' : 'sites' ),
+	};
+
+	WP_CLI::confirm( "Set role for these users on {$sites_label}?", $assoc_args );
 
 	$progress = make_progress_bar( 'Updating users', count( $target_users ) );
 
 	foreach ( $target_users as $user ) {
-		foreach ( get_blogs_of_user( $user->ID ) as $site ) {
-			switch_to_blog( (int) $site->userblog_id );
+		$blog_ids = 'current' === $sites_mode
+			? array_map( fn( $blog ) => (int) $blog->userblog_id, get_blogs_of_user( $user->ID ) )
+			: $global_blog_ids;
 
-			$wp_user = new WP_User( $user->ID );
-			$wp_user->set_role( $role );
-
-			restore_current_blog();
+		foreach ( $blog_ids as $blog_id ) {
+			add_user_to_blog( $blog_id, $user->ID, $role );
 		}
 
 		$progress->tick();
@@ -409,6 +433,64 @@ function parse_target_args( array $assoc_args ): array {
 	}
 
 	return compact( 'never', 'days', 'users_input', 'dry_run' );
+}
+
+/**
+ * Parse and validate the --sites argument.
+ *
+ * @param array $assoc_args
+ * @return string|int[] 'current', 'all', or an array of blog IDs.
+ */
+function parse_sites_arg( array $assoc_args ): string|array {
+	$sites_input = (string) \WP_CLI\Utils\get_flag_value( $assoc_args, 'sites', '' );
+
+	if ( ! $sites_input ) {
+		WP_CLI::error( "--sites=<sites> is required. Use 'current', 'all', or a comma-separated list of site IDs and/or URLs." );
+	}
+
+	if ( 'current' === $sites_input || 'all' === $sites_input ) {
+		return $sites_input;
+	}
+
+	$blog_ids = [];
+
+	foreach ( array_map( 'trim', explode( ',', $sites_input ) ) as $site_input ) {
+		$blog_id = resolve_site( $site_input );
+
+		if ( ! $blog_id ) {
+			WP_CLI::error( "Could not find site: {$site_input}" );
+		}
+
+		$blog_ids[] = $blog_id;
+	}
+
+	return $blog_ids;
+}
+
+/**
+ * Resolve a site identifier (numeric ID, domain, or domain/path) to a blog ID.
+ *
+ * @param string $input Site ID, domain, or domain/path.
+ * @return int Blog ID, or 0 if not found.
+ */
+function resolve_site( string $input ): int {
+	if ( is_numeric( $input ) ) {
+		$site = get_site( (int) $input );
+		return $site ? (int) $site->blog_id : 0;
+	}
+
+	$input = preg_replace( '#^https?://#', '', $input );
+	$input = rtrim( $input, '/' );
+
+	if ( str_contains( $input, '/' ) ) {
+		[ $domain, $path_part ] = explode( '/', $input, 2 );
+		$path                   = '/' . $path_part . '/';
+	} else {
+		$domain = $input;
+		$path   = '/';
+	}
+
+	return (int) get_blog_id_from_url( $domain, $path );
 }
 
 /**
