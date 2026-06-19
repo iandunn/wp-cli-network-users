@@ -20,10 +20,6 @@
 		}
 	],
 
-	"autoload" : {
-		"files" : [ "wp-cli-network-users.php" ]
-	},
-
 	"require-dev" : {
 		"wp-cli/wp-cli-tests"   : "^4.2",
 		"wp-cli/entity-command"    : "^2",
